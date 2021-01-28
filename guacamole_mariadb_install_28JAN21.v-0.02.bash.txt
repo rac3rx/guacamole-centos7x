@@ -151,7 +151,7 @@ cd /tmp
 curl -LO https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-8.0.23.tar.gz
 #curl -LO https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-5.1.45.tar.gz
 #curl -LO https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-8.0.23-1.el7.noarch.rpm
-tar zxvf ./mysql-connector-java-5.1.45.tar.gz
+tar zxvf ./mysql-connector-java-8.0.23.tar.gz
 cp mysql-connector-java-*/mysql-connector-java-*.jar /etc/guacamole/lib/
 
 cd /tmp
@@ -161,9 +161,6 @@ cp guacamole-auth-jdbc-1.3.0/mysql/guacamole-auth-jdbc-mysql-1.3.0.jar /etc/guac
 
 cd guacamole-auth-jdbc-0.9*/mysql/schema
 cat *.sql | mysql -u root -p guacdb
-
-
-
 
 cp /tmp/guacamole-1.3.0.war /opt/tomcat/webapps/guacamole.war
 if [ -f /etc/guacamole/guacamole.properties ]; then cp /etc/guacamole/guacamole.properties /etc/guacamole/guacamole.properties.000; fi
