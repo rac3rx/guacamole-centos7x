@@ -1,0 +1,630 @@
+
+##############################################################################################
+# 15JAN21 - START.000
+##############################################################################################
+# https://guacamole.apache.org/doc/0.9.0/gug/installing-guacamole.html
+# https://blog.andreev.it/?p=4239
+# https://computingforgeeks.com/install-guacamole-remote-desktop-centos/
+# https://alibaba-cloud.medium.com/how-to-create-virtual-cloud-desktop-using-apache-guacamole-283498620571
+
+    #
+    # Fedora, RHEL, and CentOS
+    #
+
+        #
+        # repos, selinux, and reboot
+        #
+        yum update -y
+        yum -y install vim screen
+        #scp /home/rac3rx/.screenrc root@centos7-vm:/root/
+        yum -y install epel-release
+        rpm -Uvh https://download1.rpmfusion.org/free/el/rpmfusion-free-release-7.noarch.rpm
+        sed -i 's/=enforcing/=permissive/' /etc/selinux/config
+        systemctl reboot -i
+
+        #
+        # setup guacamole source files
+        #
+        yum -y install cairo-devel ffmpeg-devel freerdp-devel freerdp-plugins gcc gnu-free-mono-fonts libjpeg-turbo-devel libjpeg-devel libpng-devel libssh2-devel libssh-devel libtool libvncserver-devel libvorbis-devel libwebp-devel libwebsockets-devel openssl-devel pango-devel pulseaudio-libs-devel uuid-devel
+
+        yum -y install terminus-fonts
+        yum -y groupinstall "Development Tools"
+        cd /tmp
+        curl -O https://archive.apache.org/dist/guacamole/1.3.0/source/guacamole-server-1.3.0.tar.gz
+        #curl -O https://archive.apache.org/dist/guacamole/1.3.0/source/guacamole-client-1.3.0.tar.gz
+        curl -O https://mirrors.ocf.berkeley.edu/apache/guacamole/1.3.0/binary/guacamole-1.3.0.war
+        reboot    # take snapshot
+
+        #
+        # guacamole - compile and install
+        #
+        tar xzvf server.tar.gz
+        cd guacamole-server-0.9.14
+        ./configure --with-init-dir=/etc/init.d
+
+            ------------------------------------------------
+            guacamole-server version 1.3.0
+            ------------------------------------------------
+
+               Library status:
+
+                 freerdp2 ............ yes
+                 pango ............... yes
+                 libavcodec .......... yes
+                 libavformat.......... yes
+                 libavutil ........... yes
+                 libssh2 ............. yes
+                 libssl .............. yes
+                 libswscale .......... yes
+                 libtelnet ........... yes
+                 libVNCServer ........ yes
+                 libvorbis ........... yes
+                 libpulse ............ yes
+                 libwebsockets ....... yes
+                 libwebp ............. yes
+                 wsock32 ............. no
+
+               Protocol support:
+
+                  Kubernetes .... yes
+                  RDP ........... yes
+                  SSH ........... yes
+                  Telnet ........ yes
+                  VNC ........... yes
+
+               Services / tools:
+
+                  guacd ...... yes
+                  guacenc .... yes
+                  guaclog .... yes
+
+               FreeRDP plugins: /usr/lib64/freerdp2
+               Init scripts: /etc/init.d/
+               Systemd units: no
+
+        make
+            make[2]: Leaving directory `/tmp/guacamole-server-1.3.0/src/guaclog'
+            make[2]: Entering directory `/tmp/guacamole-server-1.3.0'
+            make[2]: Leaving directory `/tmp/guacamole-server-1.3.0'
+            make[1]: Leaving directory `/tmp/guacamole-server-1.3.0'
+        make install
+            ----------------------------------------------------------------------
+            Libraries have been installed in:
+               /usr/local/lib
+
+            If you ever happen to want to link against installed libraries
+            in a given directory, LIBDIR, you must either use libtool, and
+            specify the full pathname of the library, or use the '-LLIBDIR'
+            flag during linking and do at least one of the following:
+               - add LIBDIR to the 'LD_LIBRARY_PATH' environment variable
+                      during execution
+               - add LIBDIR to the 'LD_RUN_PATH' environment variable
+                      during linking
+               - use the '-Wl,-rpath -Wl,LIBDIR' linker flag
+                    - have your system administrator add LIBDIR to '/etc/ld.so.conf'
+
+            See any operating system documentation about shared libraries for
+            more information, such as the ld(1) and ld.so(8) manual pages.
+            ----------------------------------------------------------------------
+            make[2]: Leaving directory `/tmp/guacamole-server-1.3.0'
+            make[1]: Leaving directory `/tmp/guacamole-server-1.3.0'
+        ldconfig
+
+        #
+        # guacamole proxy daemon; enable and start at boot
+        #
+        systemctl enable guacd
+        systemctl start guacd
+        systemctl status guacd
+            systemctl status guacd
+            ● guacd.service - LSB: Guacamole proxy daemon
+               Loaded: loaded (/etc/rc.d/init.d/guacd; bad; vendor preset: disabled)
+               Active: active (running) since Fri 2021-01-15 12:41:43 CST; 6s ago
+                 Docs: man:systemd-sysv-generator(8)
+              Process: 13436 ExecStart=/etc/rc.d/init.d/guacd start (code=exited, status=0/SUCCESS)
+               CGroup: /system.slice/guacd.service
+                       └─13439 /usr/local/sbin/guacd -p /var/run/guacd.pid
+
+            Jan 15 12:41:43 centos7-vm.localdomain systemd[1]: Starting LSB: Guacamole proxy daemon...
+            Jan 15 12:41:43 centos7-vm.localdomain guacd[13437]: Guacamole proxy daemon (guacd) version 1.3.0 started
+            Jan 15 12:41:43 centos7-vm.localdomain guacd[13436]: Starting guacd: guacd[13437]: INFO:        Guacamole proxy daemon
+            (guacd) version 1.3.0 started
+            Jan 15 12:41:43 centos7-vm.localdomain guacd[13436]: SUCCESS
+            Jan 15 12:41:43 centos7-vm.localdomain guacd[13439]: Listening on host 127.0.0.1, port 4822
+            Jan 15 12:41:43 centos7-vm.localdomain systemd[1]: Started LSB: Guacamole proxy daemon.
+
+        #
+        # java-1.8.0; install
+        #
+        yum -y install java-1.8.0-openjdk.x86_64
+
+
+        #
+        # tomcat; setup (bin NOT src)
+        #
+        groupadd tomcat
+        useradd -M -d /opt/tomcat -g tomcat -s /bin/false tomcat
+        #curl -O https://mirrors.ocf.berkeley.edu/apache/tomcat/tomcat-8/v8.5.61/src/apache-tomcat-8.5.61-src.tar.gz
+        curl -O https://downloads.apache.org/tomcat/tomcat-8/v8.5.61/bin/apache-tomcat-8.5.61.tar.gz
+        mkdir /opt/tomcat
+        tar zxvf /tmp/apache-tomcat-8.5.61.tar.gz -C /opt/tomcat/ --strip-components=1
+        # permissions
+        chgrp -R tomcat /opt/tomcat
+        chmod -R g+r /opt/tomcat/conf/
+        chmod g+x /opt/tomcat/conf/
+        for i in work temp logs; do mkdir /opt/tomcat/$i; done
+        for i in webapps work temp logs; do chown -R tomcat /opt/tomcat/$i; done
+        #chmod 750 /opt/tomcat/bin/*.sh
+        # systemd; tomcat.service
+        cat << EOF > /etc/systemd/system/tomcat.service
+# Apache Tomcat Systemd Service File
+[Unit]
+Description=Apache Tomcat Web Application Container
+After=syslog.target network.target
+[Service]
+Type=forking
+Environment=JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.275.b01-0.el7_9.x86_64/jre
+Environment=CATALINA_PID=/opt/tomcat/temp/tomcat.pid
+Environment=CATALINA_HOME=/opt/tomcat
+Environment=CATALINA_BASE=/opt/tomcat
+Environment='CATALINA_OPTS=-Xms512M -Xmx1024M -server -XX:+UseParallelGC'
+Environment='JAVA_OPTS=-Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom'
+ExecStart=/opt/tomcat/bin/startup.sh
+ExecStop=/bin/kill -15 $MAINPID
+User=tomcat
+Group=tomcat
+UMask=0007
+RestartSec=10
+Restart=always
+[Install]
+WantedBy=multi-user.target
+EOF
+
+        # NB: JAVA_HOME; three methods to find it
+              1.) alternatives --config java (truncate ../bin/java)
+              2.) java -XshowSettings:properties -version 2>&1 > /dev/null | grep 'java.home' 
+              3.) $env | grep JAVA_HOME
+
+        # setup JAVA_HOME
+        #echo '# setup JAVA_HOME' >> ~/.bash_profile
+        #echo 'export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.275.b01-0.el7_9.x86_64/jre' >> ~/.bash_profile
+        #echo 'export PATH=$PATH:$JAVA_HOME/bin' >> ~/.bash_profile
+        #echo 'export CLASSPATH=.:$JAVA_HOME/jre/lib:$JAVA_HOME/lib:$JAVA_HOME/lib/tools.jar' >> ~/.bash_profile
+        #. ~/.bash_profile
+
+
+        # setup tomcat services and test it
+        systemctl daemon-reload
+        systemctl enable tomcat
+        systemctl start tomcat
+        curl localhost:8080
+        curl localhost:8080/guacamole
+        curl -O https://mirrors.ocf.berkeley.edu/apache/guacamole/1.3.0/binary/guacamole-1.3.0.war
+        cp guacamole-0.9.14.war /opt/tomcat/webapps/guacamole.war
+        # REF: https://gist.github.com/atomlab/376901845c3d474d1e60e6b7a3affaae
+        curl http://172.16.92.131:8080/guacamole/#/
+        curl -X POST -F 'username=username&password=password' localhost:8080/guacamole/api/
+        curl -X POST -F 'username=username&password=password' localhost:8080/guacamole/api/tokens
+        curl 'http://localhost:8080/guacamole/api/session/data/postgresql/connections?token=<TOKEN>'| jq
+
+
+        #
+        # authentication setup; guacamole and mysql (mariadb)
+        #
+        yum -y install mariadb-server
+        systemctl start mariadb
+        systemctl enable mariadb
+        systemctl status mariadb
+
+        # remove test DB and USER
+        mysql_secure_installation
+
+        # login & set password to mysql via shell
+        mysql -u root -p
+
+        # create guacdb
+        CREATE DATABASE guacdb CHARACTER SET utf8 COLLATE utf8_general_ci;
+        CREATE USER 'guacdb-user'@'localhost' IDENTIFIED BY 'StrongPassword123!@#';
+        GRANT ALL PRIVILEGES ON guacdb.* TO 'guacdb-user'@'localhost';
+        FLUSH PRIVILEGES;
+        EXIT;
+
+        # make directories for: mysql connector & guac jdbc auth plugin
+        mkdir -p /etc/guacamole/{extensions,lib}
+
+        # download, extract, & copy mysql connector jar file into /etc/guacamole/lib directory
+        cd /tmp
+        curl -LO https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-5.1.45.tar.gz
+        tar zxvf ./mysql-connector-java-5.1.45.tar.gz
+        cp mysql-connector-java-*/mysql-connector-java-*-bin.jar /etc/guacamole/lib/
+        # rm -f /etc/guacamole/lib/mysql-connector-java-*-bin.jar
+
+        # download, extract, & copy guacamole jdbc authentication extension jar file into /etc/guacamole/extensions directory
+        cd /tmp
+        curl -LO https://archive.apache.org/dist/guacamole/0.9.14/binary/guacamole-auth-jdbc-0.9.14.tar.gz
+        tar zxvf guacamole-auth-jdbc-0.9.14.tar.gz
+        cp guacamole-auth-jdbc-0.9*/mysql/guacamole-auth-jdbc-mysql-0.9*.jar /etc/guacamole/extensions/
+        #rm -f /etc/guacamole/extensions/guacamole-auth-jdbc-mysql-0.9*.jar
+
+        # create DB schema and import the initial data (-u user -p promptPW nameOfDB)
+        cd guacamole-auth-jdbc-0.9*/mysql/schema
+        cat *.sql | mysql -u root -p guacdb
+
+        # mysql -u root -p guacamole_db < /tmp/guacamole-auth-jdbc-0.9.14/mysql/schema/001-create-schema.sql
+        # mysql -u root -p guacamole_db < /tmp/guacamole-auth-jdbc-0.9.14/mysql/schema/002-create-admin-user.sql
+
+        # verify/troubleshoot mysql
+        mysql -u root -p guacdb
+        use guacdb;
+        show tables;
+        desc guacamole_user;
+        select * from guacamole_user;
+        SELECT Host, User FROM mysql.user;
+        DROP USER ''@'localhost';
+        DROP USER ''@'the.server.hostname';
+        FLUSH PRIVILEGES;
+        DROP DATABASE guacdb
+
+
+        # create guacamole config
+        cp /etc/guacamole/guacamole.properties /etc/guacamole/guacamole.properties.000
+cat <<EOF> /etc/guacamole/guacamole.properties
+# MySQL properties
+mysql-hostname: localhost
+mysql-port: 3306
+mysql-database: guacdb
+mysql-username: guacdb-user
+mysql-password: StrongPassword123!@#
+mysql-default-max-connections-per-user: 0
+mysql-default-max-group-connections-per-user: 0
+EOF
+
+        # set GUACAMOLE_HOME environment variable; so guac server can read config/extensions
+        echo "export GUACAMOLE_HOME=/etc/guacamole" >> ~/.bash_profile
+        source ~/.bash_profile
+
+        # disable selinux as it causes errors when running guac
+        #sed -i.`date '+%d%b%y'` 's/enforcing/disabled/g' /etc/selinux/config
+        #setenforce 0
+
+        # restart guac proxy & tomcat daemon
+        systemctl restart guacd
+        systemctl restart tomcat
+        systemctl restart guacd && systemctl restart tomcat
+        # login to: http://your-server-ip:8080/guacamole; using default admin user “guacadmin” and password “guacadmin”.
+        curl -X POST -F 'username=guacadmin&password=guacadmin' localhost:8080/guacamole/api/tokens
+
+https://guacamole.apache.org/doc/gug/configuring-guacamole.html
+cat <<EOF> logback.xml
+<configuration>
+
+    <!-- Appender for debugging -->
+    <appender name="GUAC-DEBUG" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Log at DEBUG level -->
+    <root level="debug">
+        <appender-ref ref="GUAC-DEBUG"/>
+    </root>
+
+</configuration>
+
+
+##############################################################################################
+# 15JAN21 - STOP.000
+##############################################################################################
+
+
+
+##############################################################################################
+# 15JAN21 - START
+##############################################################################################
+# https://guacamole.apache.org/doc/0.9.0/gug/installing-guacamole.html
+# https://blog.andreev.it/?p=4239
+# https://computingforgeeks.com/install-guacamole-remote-desktop-centos/
+# https://alibaba-cloud.medium.com/how-to-create-virtual-cloud-desktop-using-apache-guacamole-283498620571
+
+    #
+    # Fedora, RHEL, and CentOS
+    #
+
+        #
+        # setup repos, selinux, and reboot
+        #
+        yum update -y
+        yum -y install vim screen
+        #scp /home/rac3rx/.screenrc root@centos7-vm:/root/
+        yum -y install epel-release
+        rpm -Uvh https://download1.rpmfusion.org/free/el/rpmfusion-free-release-7.noarch.rpm
+        sed -i 's/=enforcing/=permissive/' /etc/selinux/config
+        systemctl reboot -i
+
+        #
+        # setup guacamole source files
+        #
+        yum -y install cairo-devel ffmpeg-devel freerdp-devel freerdp-plugins gcc gnu-free-mono-fonts libjpeg-turbo-devel libjpeg-devel libpng-devel libssh2-devel libssh-devel libtool libvncserver-devel libvorbis-devel libwebp-devel libwebsockets-devel openssl-devel pango-devel pulseaudio-libs-devel uuid-devel
+
+        yum -y install maven
+        yum -y install tomcat
+        yum -y install terminus-fonts
+        #yum -y install -y unzip make cmake gcc zlib-devel
+        # don't need it; vuln
+        #yum -y install libtelnet-devel  
+        yum -y groupinstall "Development Tools"
+        cd /tmp
+        curl -O https://archive.apache.org/dist/guacamole/1.3.0/source/guacamole-server-1.3.0.tar.gz
+        curl -O https://archive.apache.org/dist/guacamole/1.3.0/source/guacamole-client-1.3.0.tar.gz
+
+#
+
+        reboot
+        # take snapshot
+
+    tar xzvf server.tar.gz
+    cd guacamole-server-0.9.14
+    ./configure --with-init-dir=/etc/init.d
+    make
+    make install
+    ldconfig
+
+##############################################################################################
+# 15JAN21 - STOP
+##############################################################################################
+
+# https://guacamole.apache.org/doc/0.9.0/gug/installing-guacamole.html
+  # Fedora, RHEL, and CentOS
+    # setup repos, selinux, and reboot
+    yum update -y
+    yum -y install vim screen
+    scp /home/rac3rx/.screenrc root@centos7-vm:/root/
+    yum -y install epel
+    rpm -Uvh https://download1.rpmfusion.org/free/el/rpmfusion-free-release-7.noarch.rpm
+    sed -i 's/=enforcing/=permissive/' /etc/selinux/config
+    systemctl reboot -i
+
+    # install guacamole and guacd
+    # yum install guacamole guacd                                           # fails, not in repo
+    # yum install tomcat tomcat-webapps                                     # a ref only
+
+    # yum -y install cairo-devel ffmpeg-devel freerdp-devel freerdp-plugins gcc gnu-free-mono-fonts libjpeg-turbo-devel libjpeg-devel libpng-devel libssh2-devel libssh-devel libtelnet-devel libtool libvncserver-devel libvorbis-devel libwebp-devel libwebsockets-devel openssl-devel pango-devel pulseaudio-libs-devel uuid-devel
+
+    yum -y groupinstall "Development Tools"
+    #yum -y install wget
+
+    cd /tmp
+    wget -ct 3 https://archive.apache.org/dist/guacamole/1.3.0/source/guacamole-server-1.3.0.tar.gz
+    wget -ct 3 https://archive.apache.org/dist/guacamole/1.3.0/source/guacamole-client-1.3.0.tar.gz
+
+    tar xzvf server.tar.gz
+    cd guacamole-server-0.9.14
+    ./configure --with-init-dir=/etc/init.d
+    make
+    make install
+    ldconfig
+
+    /etc/init.d/guacd start
+    yum -y install java-1.8.0-openjdk-devel.x86_64
+    yum -y install ant
+
+groupadd tomcat
+useradd -M -s /bin/false -g tomcat -d /opt/tomcat tomcat
+#useradd -M -s /bin/nologin -g tomcat -d /opt/tomcat tomcat
+useradd -m -U -d /opt/tomcat -s /bin/false tomcat
+
+    curl -O https://mirrors.ocf.berkeley.edu/apache/tomcat/tomcat-8/v8.5.61/src/apache-tomcat-8.5.61-src.tar.gz
+    mkdir -p /opt/tomcat
+    cd /opt/tomcat
+    tar zxvf /tmp/apache-tomcat-8.5.61-src.tar.gz
+    cd apache-tomcat-8.5.61-src/
+    ln -s /opt/tomcat/apache-tomcat-8.5.61-src/ /opt/tomcat/latest
+    chgrp -R tomcat /opt/tomcat
+    chmod -R g+r /opt/tomcat/latest/conf/
+    chmod g+x /opt/tomcat/latest/conf/
+    for i in webapps work temp logs; do mkdir /opt/tomcat/latest/$i; done
+    for i in webapps work temp logs; do chown -R tomcat /opt/tomcat/latest/$i; done
+    chmod +x /opt/tomcat/apache-tomcat-8.5.61-src/bin/*.sh
+
+cat <<EOF> /etc/systemd/system/tomcat.service
+# Systemd unit file for tomcat
+[Unit]
+Description=Apache Tomcat Web Application Container
+After=syslog.target network.target
+
+[Service]
+Type=forking
+
+Environment="JAVA_HOME=$(dirname $(dirname $(readlink $(readlink $(which javac)))))"
+Environment=CATALINA_PID=/opt/tomcat/latest/temp/tomcat.pid
+Environment=CATALINA_HOME=/opt/tomcat/latest
+Environment=CATALINA_BASE=/opt/tomcat/latest
+Environment='CATALINA_OPTS=-Xms512M -Xmx1024M -server -XX:+UseParallelGC'
+Environment='JAVA_OPTS=-Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom'
+
+ExecStart=/opt/tomcat/latest/bin/startup.sh
+ExecStop=/bin/kill -15 $MAINPID
+
+User=tomcat
+Group=tomcat
+UMask=0007
+RestartSec=10
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+
+firewall-cmd --permanent --zone=drop --add-source=0.0.0.0
+firewall-cmd --permanent --zone=drop --add-source=::
+firewall-cmd --permanent --zone=drop --add-port=443/tcp
+firewall-cmd --permanent --zone=drop --add-port=8080/tcp
+firewall-cmd --permanent --zone=drop --add-port=8443/tcp
+firewall-cmd --permanent --zone=drop --add-rich-rule='rule family="ipv4"
+source address="172.16.92.131" port port="22" protocol="tcp" accept'
+firewall-cmd --permanent --zone=drop --add-rich-rule='rule family="ipv4"
+source address="172.16.22.132" port port="22" protocol="tcp" accept'
+firewall-cmd --permanent --zone=drop --add-rich-rule='rule family="ipv6"
+source address="11:22:33:401::11" port port="22" protocol="tcp" accept'
+firewall-cmd --permanent --zone=drop --add-rich-rule='rule family="ipv6"
+source address="11:22:33:401::12" port port="22" protocol="tcp" accept'
+firewall-cmd --permanent --zone public --remove-interface ens33
+firewall-cmd --permanent --zone=public --remove-service=ssh
+firewall-cmd --permanent --zone=public --remove-service=dhcpv6-client
+firewall-cmd --permanent --zone drop --add-interface ens33
+firewall-cmd --reload
+
+firewall-cmd --get-active-zones
+firewall-cmd --list-all-zones
+
+cp /opt/tomcat/latest/conf/tomcat-users.xml /opt/tomcat/latest/conf/tomcat-users.xml.000
+echo '<tomcat-users xmlns="http://tomcat.apache.org/xml"; 
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance";
+       xsi:schemaLocation="http://tomcat.apache.org/xml tomcat-users.xsd"
+       version="1.0">
+   <role rolename="admin-gui"/>
+   <role rolename="manager-gui"/>
+   <role rolename="manager-scripts"/>
+   <user username="admin" password="admin"
+roles="admin-gui,manager-gui,manager-scripts"/>
+</tomcat-users>' > /opt/tomcat/latest/conf/tomcat-users.xml
+
+# Disable the firewall while completing tomcat setup:
+systemctl disable firewalld;systemctl stop firewalld
+
+curl -O https://archive.apache.org/dist/tomcat/tomcat-connectors/native/1.2.26/source/tomcat-native-1.2.26-src.tar.gz
+tar xzvf tomcat-native-1.2.26-src.tar.gz
+cd tomcat-native-1.2.26-src/native
+
+# setup JAVA_HOME
+echo '# setup JAVA_HOME' >> ~/.bash_profile
+echo 'export JAVA_HOME=$(dirname $(dirname $(readlink $(readlink $(which javac)))))' >> ~/.bash_profile
+echo 'export PATH=$PATH:$JAVA_HOME/bin' >> ~/.bash_profile
+echo 'export CLASSPATH=.:$JAVA_HOME/jre/lib:$JAVA_HOME/lib:$JAVA_HOME/lib/tools.jar' >> ~/.bash_profile
+. ~/.bash_profile
+
+yum install apr-devel openssl-devel
+#./configure --with-java-home /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.275.b01-0.el7_9.x86_64/
+./configure
+make
+make install 
+
+systemctl daemon-reload
+systemctl restart tomcat
+
+# Permits java to listen on any privileged port, ie ports 1-1024:
+setcap cap_net_bind_service+ep /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.275.b01-0.el7_9.x86_64/jre/bin/java
+
+echo '/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.275.b01-0.el7_9.x86_64/jre/lib/amd64/jli/' >> /etc/ld.so.conf.d/java.conf
+systemctl daemon-reload
+reboot
+
+# Configure use of PKI:
+#>>>> Copy from Windows our.pfx ---> /root/
+# The Windows our.pfx file must include a full certificate chain to a trusted CA certificate.
+#cd ~
+#mv /root/our.pfx /opt/tomcat/latest/conf/US.pfx
+
+
+
+
+
+
+
+
+
+
+
+
+
+  # comm protocols
+    yum install libguac-client-vnc libguac-client-ssh libguac-client-rdp    # freerdp-devel & freerdp-plugins alternatively
+
+  # enable services
+    systemctl enable tomcat6.service
+    systemctl enable guacd
+
+  # firewall
+    firewall-cmd --permanent --add-port=8080/tcp
+    firewall-cmd --reload
+
+
+https://kcshares.blogspot.com/2020/02/
+Step 1.  Of course, you need to install a new system.  During the installation, remember to set few things to avoid manual
+change later.
+
+    [ ] set time zone
+    [ ] set network configuration
+    [ ] firewall
+    [ ] selinux
+    [ ] set storage
+    [ ] select minimal server packages
+    [ ] begin installation
+    [ ] set root password
+
+
+# Step 2. After installation reboot, it's a good practice to keep your system up-to-date.
+
+    yum update -y
+    systemctl reboot -i
+
+# Reboot
+
+
+# Step 3. Install some dependency packages.  The following list all packages to be installed. 
+    yum install -y cairo-devel
+    yum install -y libjpeg-turbo-devel
+    yum install -y libpng-devel
+    yum install -y libtool
+    yum install -y uuid-devel
+
+    yum install epel-release
+    #rpm -v --import http://li.nux.ro/download/nux/RPM-GPG-KEY-nux.ro
+    #rpm -Uvh http://li.nux.ro/download/nux/dextop/el7/x86_64/nux-dextop-release-0-5.el7.nux.noarch.rpm
+    yum install -y ffmpeg-devel
+    yum install -y freerdp-devel
+    yum install -y libssh2-devel
+    yum install -y libtelnet-devel
+    yum install -y libvncserver-devel
+    yum install -y libvorbis-devel
+    yum install -y libwebp-devel
+    yum install -y libwebsockets-devel
+    yum install -y openssl-devel
+    yum install -y pango-devel
+    yum install -y pulseaudio-libs-devel
+
+wget -ct 3 https://archive.apache.org/dist/guacamole/1.3.0/source/guacamole-server-1.3.0.tar.gz
+wget -ct 3 https://archive.apache.org/dist/guacamole/1.3.0/source/guacamole-client-1.3.0.tar.gz
+
+
+
+
+
+
+REF:
+https://guacamole.apache.org/doc/1.0.0/gug/installing-guacamole.html
+https://guacamole.apache.org/doc/0.9.0/gug/installing-guacamole.html
+https://guacamole.apache.org/releases/
+https://github.com/apache/guacamole-server
+
+# More thorough
+https://kcshares.blogspot.com/2020/02/
+
+https://kifarunix.com/how-to-install-and-configure-guacamole-on-fedora-29/
+
+https://deviant.engineer/2016/11/guacamole-incubator-centos7/
+
+https://raw.githubusercontent.com/Zer0CoolX/guacamole-install-rhel-7/master/guac-install.sh
+
+https://alibaba-cloud.medium.com/how-to-create-virtual-cloud-desktop-using-apache-guacamole-283498620571
+
+# Probably the most extensive instructions
+https://www.mail-archive.com/user@guacamole.apache.org/msg02507.html
+
+https://www.digitalocean.com/community/tutorials/how-to-install-apache-tomcat-8-on-centos-7
+
+Adding your first connections in Guacamole
+https://jotmynotes.blogspot.com/2017/08/install-guacamole-on-centos-7-6-super.html
+https://enterprise.glyptodon.com/doc/latest/using-guacamole-with-a-mysql-database-12812310.html

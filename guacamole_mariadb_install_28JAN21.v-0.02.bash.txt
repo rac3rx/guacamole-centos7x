@@ -1,0 +1,196 @@
+#                                                                  +-----+
+#                                                          ......> | RDP |
+# +--------------------+         +-----------------------+ .       +-----+
+# |       HTML5        |         | Servelet Container    | .       +-----+
+# |    Web Browser     | ------> |  (eg Apache Tomcat)   | ------> | VNC |
+# +--------------------+         |   Guacamole Server    | .       +-----+
+#                                +-----------------------+ .       +-----+
+#                                                          .       | SSH |
+#                                                          ......> +-----+
+
+yum update -y
+yum -y install vim screen
+yum -y install epel-release
+rpm -Uvh https://download1.rpmfusion.org/free/el/rpmfusion-free-release-7.noarch.rpm
+
+sed -i 's/=enforcing/=permissive/' /etc/selinux/config
+
+systemctl reboot -i
+
+yum -y install cairo-devel dejavu-sans-mono-fonts ffmpeg-devel freerdp freerdp-devel freerdp-plugins gcc gnu-free-mono-fonts libjpeg-turbo libjpeg-turbo-devel libjpeg-devel libpng-devel libssh2-devel libssh-devel libtool libvncserver-devel libvorbis-devel libwebp libwebp-devel libwebsockets-devel openssl-devel pango-devel pulseaudio-libs-devel terminus-fonts uuid-devel
+
+yum -y install terminus-fonts lynx mlocate
+yum -y groupinstall "Development Tools"
+cd /tmp
+curl -O https://archive.apache.org/dist/guacamole/1.3.0/source/guacamole-server-1.3.0.tar.gz
+# git clone git://github.com/apache/guacamole-server.git
+curl -O https://mirrors.ocf.berkeley.edu/apache/guacamole/1.3.0/binary/guacamole-1.3.0.war
+reboot    # take snapshot
+
+tar xzvf guacamole-server-1.3.0.tar.gz
+cd guacamole-server-1.3.0
+./configure --with-init-dir=/etc/init.d
+
+
+make
+make install
+ldconfig
+
+systemctl enable guacd
+systemctl start guacd
+systemctl status guacd
+
+yum -y install java-1.8.0-openjdk java-1.8.0-openjdk-headless java-1.8.0-openjdk-devel
+
+groupadd tomcat
+useradd -M -d /opt/tomcat -g tomcat -s /bin/false tomcat
+cd /tmp
+curl -O https://downloads.apache.org/tomcat/tomcat-8/v8.5.61/bin/apache-tomcat-8.5.61.tar.gz
+mkdir /opt/tomcat
+tar zxvf /tmp/apache-tomcat-8.5.61.tar.gz -C /opt/tomcat/ --strip-components=1
+
+chown -R tomcat:tomcat /opt/tomcat
+chmod -R g+r /opt/tomcat/conf
+for i in logs temp webapps work; do if [ ! -d /opt/tomcat/$i ]; then mkdir $i; fi; done
+#for i in logs temp webapps work; do chmod -R g+w /opt/tomcat/$i; done
+#for i in logs temp webapps work; do chmod -R g+s /opt/tomcat/$i; done
+chmod -R g+w /opt/tomcat/logs
+chmod -R g+w /opt/tomcat/temp
+chmod -R g+w /opt/tomcat/webapps
+chmod -R g+w /opt/tomcat/work
+
+chmod -R g+s /opt/tomcat/conf
+chmod -R g+s /opt/tomcat/logs
+chmod -R g+s /opt/tomcat/temp
+chmod -R g+s /opt/tomcat/webapps
+chmod -R g+s /opt/tomcat/work
+
+chgrp -R tomcat /opt/tomcat
+chmod -R g+r /opt/tomcat/conf/
+chmod g+x /opt/tomcat/conf/
+# if doesn't exists
+for i in work temp logs; do mkdir /opt/tomcat/$i; done
+for i in webapps work temp logs; do chown -R tomcat /opt/tomcat/$i; done
+
+cat << EOF > /etc/systemd/system/tomcat.service
+[Unit]
+Description=Apache Tomcat Web Application Container
+After=syslog.target network.target
+[Service]
+Type=forking
+Environment="JAVA_HOME=$(dirname $(dirname $(readlink $(readlink $(which java)))))"
+#Environment=JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.275.b08-0.el7_9.x86_64/jre
+Environment=CATALINA_PID=/opt/tomcat/temp/tomcat.pid
+Environment=CATALINA_HOME=/opt/tomcat
+Environment=CATALINA_BASE=/opt/tomcat
+Environment='CATALINA_OPTS=-Xms512M -Xmx1024M -server -XX:+UseParallelGC'
+Environment='JAVA_OPTS=-Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom'
+ExecStart=/opt/tomcat/bin/startup.sh
+ExecStop=/bin/kill -15 $MAINPID
+User=tomcat
+Group=tomcat
+UMask=0007
+RestartSec=10
+Restart=always
+[Install]
+WantedBy=multi-user.target
+EOF
+
+
+echo '# setup JAVA_HOME' >> ~/.bash_profile
+echo 'export JAVA_HOME=$(dirname $(dirname $(readlink $(readlink $(which java)))))' >> ~/.bash_profile
+echo 'export PATH=$PATH:$JAVA_HOME/bin' >> ~/.bash_profile
+echo 'export CLASSPATH=.:$JAVA_HOME/jre/lib:$JAVA_HOME/lib:$JAVA_HOME/lib/tools.jar' >> ~/.bash_profile
+. ~/.bash_profile
+
+#cat <<EOF>/etc/profile.d/jdk.sh
+#
+# Java environmemnt
+#
+#
+# Ensure the JAVA_HOME root directory to have sub directories of " bin  include  jre  lib  tapset "
+#
+#
+#export JAVA_HOME=/etc/alternatives/java_sdk_openjdk
+#export JRE_HOME=$JAVA_HOME/jre
+#export PATH=$PATH:$JRE_HOME/bin
+
+systemctl daemon-reload
+systemctl enable tomcat
+systemctl start tomcat
+echo "login with browser: http://localhost:8080"
+curl http://172.16.92.131:8080
+#curl -X POST -F 'username=username&password=password' localhost:8080/guacamole/api/
+#curl -X POST -F 'username=guacadmin&password=guacadmin' localhost:8080/guacamole/api/tokens
+#curl 'http://localhost:8080/guacamole/api/session/data/postgresql/connections?token=<TOKEN>'| jq
+
+
+yum -y install mariadb-server
+systemctl start mariadb
+systemctl enable mariadb
+systemctl status mariadb
+
+mysql_secure_installation
+
+mysql -u root -p <<EOF
+
+# don't use hyphens in usernames
+CREATE DATABASE guacdb;
+CREATE USER 'guacdb_user'@'localhost' IDENTIFIED BY 'StrongPassword123!@#';
+GRANT ALL PRIVILEGES ON guacdb.* TO 'guacdb_user'@'localhost';
+FLUSH PRIVILEGES;
+quit
+
+EOF
+
+echo "use guacdb; show tables;"|mysql -u guacdb_user -p
+mkdir -p /etc/guacamole/{extensions,lib}
+
+# https://dev.mysql.com/downloads/
+cd /tmp
+curl -LO https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-8.0.23.tar.gz
+#curl -LO https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-5.1.45.tar.gz
+#curl -LO https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-8.0.23-1.el7.noarch.rpm
+tar zxvf ./mysql-connector-java-5.1.45.tar.gz
+cp mysql-connector-java-*/mysql-connector-java-*.jar /etc/guacamole/lib/
+
+cd /tmp
+curl -LO "http://apache.org/dyn/closer.cgi?action=download&filename=guacamole/1.3.0/binary/guacamole-auth-jdbc-1.3.0.tar.gz"
+tar zxvf guacamole-auth-jdbc-1.3.0.tar.gz
+cp guacamole-auth-jdbc-1.3.0/mysql/guacamole-auth-jdbc-mysql-1.3.0.jar /etc/guacamole/extensions/
+
+cd guacamole-auth-jdbc-0.9*/mysql/schema
+cat *.sql | mysql -u root -p guacdb
+
+
+
+
+cp /tmp/guacamole-1.3.0.war /opt/tomcat/webapps/guacamole.war
+if [ -f /etc/guacamole/guacamole.properties ]; then cp /etc/guacamole/guacamole.properties /etc/guacamole/guacamole.properties.000; fi
+
+cat <<EOF> /etc/guacamole/guacamole.properties
+# Hostname and port of guacamole proxy
+#guacd-hostname: localhost
+#guacd-port:     4822
+
+# MySQL properties
+mysql-hostname: localhost
+mysql-port: 3306
+mysql-database: guacdb
+mysql-username: guacdb_user
+mysql-password: StrongPassword123!@#
+mysql-default-max-connections-per-user: 0
+mysql-default-max-group-connections-per-user: 0
+EOF
+
+echo "export GUACAMOLE_HOME=/etc/guacamole" >> ~/.bash_profile
+echo "export GUACAMOLE_HOME=/etc/guacamole" >> /etc/profile.d/guacamole.sh
+source ~/.bash_profile
+ln -s /etc/guacamole/ /root/.guacamole
+
+systemctl restart mariadb guacd tomcat
+
+echo "login with browser: http://localhost:8080/guacamole"
+curl http://172.16.92.131:8080/guacamole/#/
+
+

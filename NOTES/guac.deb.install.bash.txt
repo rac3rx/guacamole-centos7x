@@ -1,0 +1,88 @@
+#!/bin/bash
+# WORKING ON UBUNTU 16.04 WITH GUAC 0.9.14 AND TOMCAT7
+
+# Set these passwords!
+mysqlrootpassword=""
+guacdbuserpassword = ""
+
+# Version numbers of Guacamole and MySQL Connector/J to download
+GUACVERSION="0.9.14"
+MCJVERSION="5.1.45"
+
+# Tomcat Version
+TOMCAT="tomcat7"
+
+# Set MySQL root password as defined above for apt installer
+debconf-set-selections <<< "mysql-server mysql-server/root_password password $mysqlrootpassword"
+debconf-set-selections <<< "mysql-server mysql-server/root_password_again password $mysqlrootpassword"
+
+#Install Stuff
+apt-get -y install build-essential libcairo2-dev libjpeg-turbo8-dev libpng12-dev libossp-uuid-dev libavcodec-dev libavutil-dev libswscale-dev libfreerdp-dev libpango1.0-dev libssh2-1-dev libtelnet-dev libvncserver-dev libpulse-dev libssl-dev libvorbis-dev libwebp-dev mysql-server mysql-client mysql-common mysql-utilities ${TOMCAT} freerdp-x11 ghostscript wget dpkg-dev 
+# Set SERVER to be the preferred download server from the Apache CDN 
+SERVER="http://apache.org/dyn/closer.cgi?action=download&filename=guacamole/${GUACVERSION}" 
+
+# Download Guacamole Server
+wget -O guacamole-server-${GUACVERSION}.tar.gz ${SERVER}/source/guacamole-server-${GUACVERSION}.tar.gz 
+
+# Download Guacamole Client 
+wget -O guacamole-${GUACVERSION}.war ${SERVER}/binary/guacamole-${GUACVERSION}.war 
+
+# Download Guacamole authentication extensions 
+wget -O guacamole-auth-jdbc-${GUACVERSION}.tar.gz ${SERVER}/binary/guacamole-auth-jdbc-${GUACVERSION}.tar.gz 
+
+# Download MySQL Connector-J 
+wget -O mysql-connector-java-${MCJVERSION}.tar.gz https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-${MCJVERSION}.tar.gz 
+
+# Extract Guacamole files 
+tar -xzf guacamole-server-${GUACVERSION}.tar.gz tar -xzf guacamole-auth-jdbc-${GUACVERSION}.tar.gz tar -xzf mysql-connector-java-${MCJVERSION}.tar.gz 
+
+# MAKE DIRECTORIES 
+mkdir -p /etc/guacamole/lib mkdir /etc/guacamole/extensions 
+
+# Install GUACD 
+cd guacamole-server-${GUACVERSION} ./configure --with-init-dir=/etc/init.d make make install ldconfig systemctl enable guacd cd .. 
+
+# Get build-folder 
+BUILD_FOLDER=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) 
+
+# Move files to correct locations 
+mv guacamole-${GUACVERSION}.war /etc/guacamole/guacamole.war 
+ln -s /etc/guacamole/guacamole.war /var/lib/${TOMCAT}/webapps/ 
+ln -s /usr/local/lib/freerdp/guac*.so /usr/lib/${BUILD_FOLDER}/freerdp/ 
+cp mysql-connector-java-${MCJVERSION}/mysql-connector-java-${MCJVERSION}-bin.jar /etc/guacamole/lib/ 
+cp guacamole-auth-jdbc-${GUACVERSION}/mysql/guacamole-auth-jdbc-mysql-${GUACVERSION}.jar /etc/guacamole/extensions/ 
+
+# Configure guacamole.properties 
+echo "mysql-hostname: localhost" >> /etc/guacamole/guacamole.properties
+
+# Set MySQL settings in guacamole properties file
+echo "mysql-port: 3306" >> /etc/guacamole/guacamole.properties
+echo "mysql-database: guacamole_db" >> /etc/guacamole/guacamole.properties
+echo "mysql-username: guacamole_user" >> /etc/guacamole/guacamole.properties
+echo "mysql-password: $guacdbuserpassword" >> /etc/guacamole/guacamole.properties
+
+# Restart Tomcat Service
+service ${TOMCAT} restart
+
+# Create guacamole_db and grant guacamole_user permissions to it #
+
+# SQL code
+SQLCODE="
+create database guacamole_db;
+create user 'guacamole_user'@'localhost' identified by "$guacdbuserpassword";
+GRANT SELECT,INSERT,UPDATE,DELETE ON guacamole_db.* TO 'guacamole_user'@'localhost';
+flush privileges;"
+
+# Execute SQL code
+echo $SQLCODE | mysql -u root -p$mysqlrootpassword
+
+# Add Guacamole schema to newly created database
+cat guacamole-auth-jdbc-${GUACVERSION}/mysql/schema/*.sql | mysql -u root -p$mysqlrootpassword guacamole_db
+
+# Ensure guacd is started
+service guacd start
+
+# Cleanup
+rm -rf guacamole-*
+rm -rf mysql-connector-java-${MCJVERSION}*
+echo -e "Installation Completenhttp://localhost:8080/guacamole/nDefault login guacadmin:guacadminnBe sure to change the password."

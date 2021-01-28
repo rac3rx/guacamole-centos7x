@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Guacamole 1.0.0 with Radius and MySQL: Step-by-step for Linux newbies</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#02507" id="c">
+<link rel="index" href="maillist.html#02507" id="i">
+<link rel="prev" href="msg02505.html" id="p">
+<link rel="next" href="msg02508.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/user@guacamole.apache.org/msg02507.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=user@guacamole.apache.org&amp;q=subject:%22Guacamole+1.0.0+with+Radius+and+MySQL%5C%3A+Step%5C-by%5C-step+for+Linux+newbies%22&amp;o=newest" rel="nofollow"><span itemprop="name">Guacamole 1.0.0 with Radius and MySQL: Step-by-step for Linux newbies</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=user@guacamole.apache.org&amp;q=from:%22drhy%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">drhy</span></span></a></span>
+<span class="date"><a href="/search?l=user@guacamole.apache.org&amp;q=date:20190219" rel="nofollow">Tue, 19 Feb 2019 01:44:03 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>This step-by-step for Linux newbies builds a vanilla Guacamole 1.0.0,
+developed by a very newbie who needed it. (Dated February 2019.)
+With thanks to the web contributors too numerous to mention along the way.</pre><pre>
+
+It builds the default XML file authentication provider, with an option to
+instead use the Radius Authentication provider and the MySQL provider to
+allow easier user maintenance.
+Note that the new Guacamole Group feature should not be used, otherwise
+Radius authentication doesn't hand-off correctly to the user's MySQL
+configuration.
+
+The Radius Authentication Provider permits integration into the Azure MFA
+environment via the Windows Network Policy Server. 
+
+Here are the steps I used in February 2019 on Windows Server Standard 2019
+Hyper-V.
+
+Windows 2016 or 2019 Hyper-V configuration, via the Hyper-V MMC console:
+   Configure Gen2, 40GB VHDX, Dynamic Memory, Startup= 2GB, Low= 512MB,
+High= 8GB, 2 CPUs, SecureBoot= Microsoft UEFI Certificate Authority
+   Integration Services= all, Production checkpoints, Automatic Start
+Action= Always, Automatic Stop Action= Shutdown
+   DVD= CentOS Minimal ISO version 7.6 from:
+<a  rel="nofollow" href="https://www.centos.org/download/">https://www.centos.org/download/</a>
+
+Connect to CentOS via the Hyper-V &quot;Connect&quot; command/window and ensure the
+normal boot option (not test OS) is selected.
+In the CentOS start-up GUI:
+Setup a password for UserID= root, but no other userID is required at this
+stage
+Host Name= guacamole.yourdomain.com (computername pre-pended to the name of
+your domain)
+Static/Manual IP Addressing
+IPv4=172.16.25.1 (Same subnet as the computer's LAN), DNS, Gateway, Search
+Domains
+IPv6=11:22:33:401::25 (similar to IPv4 but optional)
+&quot;Automtically Connect on boot&quot;, and if visible, &quot;Availbale to All Users&quot;&quot;
+
+Use WinSCP from: <a  rel="nofollow" href="https://winscp.net/eng/download.php">https://winscp.net/eng/download.php</a>
+   It includes Putty, and under its Preferences, you can select &quot;Windows
+Explorer&quot; UI, or remain with the &quot;Commander&quot; UI.
+
+------------
+&gt;&gt;&gt;&gt; Via WinSCP, logon to your IP Address, UserID=root
+
+yum check-update
+yum -y install dos2unix nano wget screen bzip2 unzip ack epel-release psmisc
+zip
+export PS1=&quot;\u@\h\w &quot;
+echo 'export PS1=&quot;\u@\h\w &quot;' &gt;&gt; /etc/environment
+
+reboot now
+
+rpm --import <a  rel="nofollow" href="http://li.nux.ro/download/nux/RPM-GPG-KEY-nux.ro">http://li.nux.ro/download/nux/RPM-GPG-KEY-nux.ro</a>
+rpm -Uvh
+<a  rel="nofollow" href="http://li.nux.ro/download/nux/dextop/el7/x86_64/nux-dextop-release-0-5.el7.nux.noarch.rpm">http://li.nux.ro/download/nux/dextop/el7/x86_64/nux-dextop-release-0-5.el7.nux.noarch.rpm</a>
+wget <a  rel="nofollow" href="http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm">http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm</a>
+rpm -ivh epel-release-latest-7.noarch.rpm
+yum -y install cairo-devel libjpeg-turbo-devel libjpeg-devel libpng-devel
+uuid-devel gcc-c++
+yum -y install freerdp-devel freerdp-plugins pango-devel libssh2-devel
+libtelnet-devel libvncserver-devel pulseaudio-libs-devel openssl-devel
+libvorbis-devel libwebp-devel
+yum -y install libtelnet libtelnet-devel ffmpeg ffmpeg-devel apr-devel
+
+nano /etc/login.defs   #  OR use WinSCP (by double-clicking the Linux file), 
+to change PASS_WARN_AGE - defaults to 99999 days.
+
+# Support Gen2 VM with Dynamic Memory management and Hyper-V disk
+optimisation:
+echo 'SUBSYSTEM==&quot;memory&quot;, ACTION==&quot;add&quot;, ATTR{state}=&quot;online&quot;' &gt;
+/etc/udev/rules.d/100-balloon.rules
+yum install -y hyperv-daemons
+echo 'noop' &gt; /sys/block/sda/queue/scheduler
+
+yum -y check-update
+
+reboot now
+
+# The CentOS gcc compiler is very old so update it by using the old compiler
+to compile the new:
+cd ~
+wget
+<a  rel="nofollow" href="http://ftp.mirrorservice.org/sites/sourceware.org/pub/gcc/releases/gcc-7.3.0/gcc-7.3.0.tar.gz">http://ftp.mirrorservice.org/sites/sourceware.org/pub/gcc/releases/gcc-7.3.0/gcc-7.3.0.tar.gz</a>
+tar zxf gcc-7.3.0.tar.gz
+cd gcc-7.3.0
+./contrib/download_prerequisites
+./configure --disable-multilib --enable-languages=c,c++
+screen -S gcc
+make -j 4
+make install
+gcc --version
+
+reboot
+
+yum -y update
+# used by tomcat:
+yum -y install ant
+
+reboot
+
+# Compile guacd. Doesn't seem good practice to have a compiler on your
+production computer but there doesn't seem to be a better option...
+cd ~
+wget --trust-server-names
+&quot;<a  rel="nofollow" href="http://apache.org/dyn/closer.cgi?action=download&amp;filename=guacamole/1.0.0/source/guacamole-server-1.0.0.tar.gz&quot">http://apache.org/dyn/closer.cgi?action=download&amp;filename=guacamole/1.0.0/source/guacamole-server-1.0.0.tar.gz&quot</a>;
+-O &quot;guacamole-server-1.0.0.tar.gz&quot;
+tar -xzf guacamole-server-1.0.0.tar.gz
+cd guacamole-server-1.0.0
+./configure --with-apr=/usr/lib64/libapr-1.so.0.4.8
+--with-ssl=/usr/bin/openssl
+# In the final list that is shown to you from the above command, check that
+all libraries are present except wsock32 
+
+screen
+# The next two steps take at least 3 hours:
+make
+make install
+ldconfig
+
+# Set up the Gucamole extensions folder:
+cd ~
+mkdir -p /etc/guacamole/extensions
+echo '&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;user-mapping&gt;
+    &lt;authorize username=&quot;userX&quot; password=&quot;VeryComplexPassword&quot;&gt;
+      &lt;connection name=&quot;computer1&quot;&gt;
+         &lt;protocol&gt;rdp&lt;/protocol&gt;
+         computer1.yourdomain.com
+         3389
+         tls
+         US
+         true
+         true
+      &lt;/connection&gt;
+      &lt;connection name=&quot;computer2&quot;&gt;
+         &lt;protocol&gt;rdp&lt;/protocol&gt;
+         computer2.yourdomain.com
+         3389
+         tls
+         US
+         true
+         true
+      &lt;/connection&gt;
+    &lt;/authorize&gt;
+&lt;/user-mapping&gt;' &gt; /etc/guacamole/user-mapping.xml
+export GUACAMOLE_HOME='/etc/guacamole'
+echo &quot;export GUACAMOLE_HOME='/etc/guacamole'&quot; &gt;&gt; /etc/environment
+
+chmod +x /etc/rc.d/rc.local
+mkdir -p /run/guacamole
+chmod -R 777 /run/guacamole
+echo -e &quot;mkdir -p /run/guacamole
+chmod -R 777 /run/guacamole\n&quot; &gt;&gt; /etc/rc.d/rc.local
+
+echo '[daemon]
+
+pid_file = /var/run/guacamole/guacd.pid
+log_level = info
+# OR debug, and run from console as &quot;guacd -f&quot;
+
+[server]
+
+bind_host = localhost
+bind_port = 4822
+
+#
+# The following parameters are valid only if
+# guacd was built with SSL support.
+#
+
+#[ssl]
+
+#server_certificate = /etc/ssl/certs/guacd.crt
+#server_key = /etc/ssl/private/guacd.key' &gt; /etc/guacamole/guacd.conf
+
+echo 'guacd-hostname: localhost
+guacd-port: 4822' &gt; /etc/guacamole/guacamole.properties
+
+echo '[Unit]
+Description=Guacamole Server
+Documentation=man:guacd(8)
+After=network.target
+
+[Service]
+User=daemon
+ExecStart=/usr/local/sbin/guacd -f
+Restart=on-abnormal
+
+[Install]
+WantedBy=multi-user.target' &gt; /etc/systemd/system/guacd.service
+
+# Fix a minor bug:
+cp -n /usr/local/lib/freerdp/* /usr/lib64/freerdp/
+systemctl daemon-reload
+systemctl start guacd
+systemctl status guacd
+systemctl enable guacd
+
+# Install and configure the java tomcat application server. It will run
+under user tomcat.
+cd ~
+yum -y install java-1.8.0-openjdk-devel
+groupadd tomcat
+useradd -M -s /bin/nologin -g tomcat -d /opt/tomcat tomcat
+useradd -m -U -d /opt/tomcat -s /bin/false tomcat
+#### Check for latest Tomcat version number for the following lines: 
+<a  rel="nofollow" href="https://tomcat.apache.org/download-80.cgi">https://tomcat.apache.org/download-80.cgi</a>
+wget
+&quot;<a  rel="nofollow" href="http://www-us.apache.org/dist/tomcat/tomcat-8/v8.5.38/bin/apache-tomcat-8.5.38.zip&quot">http://www-us.apache.org/dist/tomcat/tomcat-8/v8.5.38/bin/apache-tomcat-8.5.38.zip&quot</a>;
+unzip apache-tomcat-*.zip
+mkdir -p /opt/tomcat
+mv apache-tomcat-8.5.38 /opt/tomcat/
+ln -s /opt/tomcat/apache-tomcat-8.5.38 /opt/tomcat/latest
+chgrp -R tomcat /opt/tomcat
+chmod -R g+r /opt/tomcat/apache-tomcat-8.5.38/conf
+chmod g+x /opt/tomcat/apache-tomcat-8.5.38/conf
+chown -R tomcat /opt/tomcat/apache-tomcat-8.5.38/webapps/
+/opt/tomcat/apache-tomcat-8.5.38/work/
+/opt/tomcat/apache-tomcat-8.5.38/temp/
+/opt/tomcat/apache-tomcat-8.5.38/logs/
+chmod +x /opt/tomcat/apache-tomcat-8.5.38/bin/*.sh
+#chown -R tomcat /opt/tomcat/
+#chmod +x /usr/bin
+
+echo '[Unit]
+Description=Apache Tomcat Web Application Container
+After=syslog.target network.target
+
+[Service]
+Type=forking
+
+User=tomcat
+Group=tomcat
+
+Environment=&quot;JAVA_HOME=/usr/lib/jvm/jre&quot;
+Environment=&quot;JAVA_OPTS=-Djava.security.egd=file:///dev/urandom&quot;
+
+Environment=&quot;CATALINA_BASE=/opt/tomcat/latest&quot;
+Environment=&quot;CATALINA_HOME=/opt/tomcat/latest&quot;
+Environment=&quot;CATALINA_PID=/opt/tomcat/latest/temp/tomcat.pid&quot;
+Environment=&quot;CATALINA_OPTS=-Xms512M -Xmx1024M -server -XX:+UseParallelGC&quot;
+
+ExecStart=/opt/tomcat/latest/bin/startup.sh
+ExecStop=/opt/tomcat/latest/bin/shutdown.sh
+
+RestartSec=10
+Restart=always
+
+[Install]
+WantedBy=multi-user.target' &gt; /etc/systemd/system/tomcat.service
+
+systemctl daemon-reload
+systemctl start tomcat
+systemctl status tomcat
+systemctl enable tomcat
+systemctl stop tomcat
+
+# Tighten up the firewall such that only necessary portsd and address ranges
+are open:
+firewall-cmd --permanent --zone=drop --add-source=0.0.0.0
+firewall-cmd --permanent --zone=drop --add-source=::
+firewall-cmd --permanent --zone=drop --add-port=443/tcp
+firewall-cmd --permanent --zone=drop --add-port=8080/tcp
+firewall-cmd --permanent --zone=drop --add-port=8443/tcp
+firewall-cmd --permanent --zone=drop --add-rich-rule='rule family=&quot;ipv4&quot;
+source address=&quot;172.16.22.1&quot; port port=&quot;22&quot; protocol=&quot;tcp&quot; accept'
+firewall-cmd --permanent --zone=drop --add-rich-rule='rule family=&quot;ipv4&quot;
+source address=&quot;172.16.22.2&quot; port port=&quot;22&quot; protocol=&quot;tcp&quot; accept'
+firewall-cmd --permanent --zone=drop --add-rich-rule='rule family=&quot;ipv6&quot;
+source address=&quot;11:22:33:401::11&quot; port port=&quot;22&quot; protocol=&quot;tcp&quot; accept'
+firewall-cmd --permanent --zone=drop --add-rich-rule='rule family=&quot;ipv6&quot;
+source address=&quot;11:22:33:401::12&quot; port port=&quot;22&quot; protocol=&quot;tcp&quot; accept'
+firewall-cmd --permanent --zone public --remove-interface eth0
+firewall-cmd --permanent --zone=public --remove-service=ssh
+firewall-cmd --permanent --zone=public --remove-service=dhcpv6-client
+firewall-cmd --permanent --zone drop --add-interface eth0
+firewall-cmd --reload
+
+firewall-cmd --get-active-zones
+firewall-cmd --list-all-zones
+
+# This file, if it exists, allows administrator access to tomcat:
+echo '&lt;tomcat-users xmlns=&quot;<a  rel="nofollow" href="http://tomcat.apache.org/xml&quot">http://tomcat.apache.org/xml&quot</a>; 
+       xmlns:xsi=&quot;<a  rel="nofollow" href="http://www.w3.org/2001/XMLSchema-instance&quot">http://www.w3.org/2001/XMLSchema-instance&quot</a>;
+       xsi:schemaLocation=&quot;<a  rel="nofollow" href="http://tomcat.apache.org/xml">http://tomcat.apache.org/xml</a> tomcat-users.xsd&quot;
+       version=&quot;1.0&quot;&gt;
+   &lt;role rolename=&quot;admin-gui&quot;/&gt;
+   &lt;role rolename=&quot;manager-gui&quot;/&gt;
+   &lt;role rolename=&quot;manager-scripts&quot;/&gt;
+   &lt;user username=&quot;admin&quot; password=&quot;adminPassword&quot;
+roles=&quot;admin-gui,manager-gui,manager-scripts&quot;/&gt;
+&lt;/tomcat-users&gt;' &gt; /opt/tomcat/apache-tomcat-8.5.38/conf/tomcat-users.xml
+
+
+nano /opt/tomcat/latest/webapps/manager/META-INF/context.xml  # OR use
+WinSCP
+&gt;&gt;&gt;&gt;Comment out the existing &quot;allow&quot; line: &quot;&quot;. Then insert the replacement:
+##allow=&quot;127\.\d+\.\d+\.\d+|::1|0:0:0:0:0:0:0:1|11:22:(0?)33:(0?)401:(:?)([A-F0-9]{1,4}:){0,3}[A-F0-9]{1,4}&quot;
+/&gt;
+&gt;&gt;&gt;&gt;Ctrl-x, Y, &lt;enter&gt;
+
+nano /opt/tomcat/latest/webapps/host-manager/META-INF/context.xml  # OR use
+WinSCP
+&gt;&gt;&gt;&gt;Comment out the existing &quot;allow&quot; line: &quot;&quot;. Then insert the replacement:
+##allow=&quot;127\.\d+\.\d+\.\d+|::1|0:0:0:0:0:0:0:1|11:22:(0?)33:(0?)401:(:?)([A-F0-9]{1,4}:){0,3}[A-F0-9]{1,4}&quot;
+/&gt;
+&gt;&gt;&gt;&gt;Ctrl-x, Y, &lt;enter&gt;
+
+# Disable the firewall while completing tomcat setup:
+systemctl disable firewalld;systemctl stop firewalld
+
+cd ~
+wget
+<a  rel="nofollow" href="https://archive.apache.org/dist/tomcat/tomcat-connectors/native/1.2.21/source/tomcat-native-1.2.21-src.tar.gz">https://archive.apache.org/dist/tomcat/tomcat-connectors/native/1.2.21/source/tomcat-native-1.2.21-src.tar.gz</a>
+tar -xzf tomcat-native-1.2.21-src.tar.gz
+cd tomcat-native-1.2.21-src/native
+&gt;&gt;&gt; Check that following openjdk directory name is correct/current, and
+&gt;&gt;&gt; update if not (occurs below 3 times):
+./configure
+--with-java-home=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.191.b12-1.el7_6.x86_64/
+make
+make install
+# apr is not in the correct directory for tomcat:
+cp -Rf /usr/local/apr/lib/* /usr/lib64/
+
+systemctl daemon-reload
+systemctl restart tomcat
+
+# Permits java to listen on any privileged port, ie ports 1-1024:
+setcap cap_net_bind_service+ep
+/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.191.b12-1.el7_6.x86_64/jre/bin/java
+echo
+'/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.191.b12-1.el7_6.x86_64/jre/lib/amd64/jli'
+&gt;&gt; /etc/ld.so.conf.d/java.conf
+systemctl daemon-reload
+
+reboot
+
+# Configure use of PKI:
+&gt;&gt;&gt;&gt; Copy from Windows our.pfx ---&gt; /root/
+# The Windows our.pfx file must include a full certificate chain to a
+trusted CA certificate.
+cd ~
+mv /root/our.pfx /opt/tomcat/latest/conf/US.pfx
+nano /opt/tomcat/latest/conf/server.xml   # OR use WinSCP
+&gt;&gt; Find and Replace '8443' with '443'
+&gt;&gt; Find:
+    &lt;Connector port=&quot;8080&quot; protocol=&quot;HTTP/1.1&quot;
+               connectionTimeout=&quot;20000&quot;
+               redirectPort=&quot;443&quot; /&gt;
+&gt;&gt; Replace with:
+    &lt;Connector port=&quot;8080&quot; maxHttpHeaderSize=&quot;8192&quot; protocol=&quot;HTTP/1.1&quot;
+       maxThreads=&quot;150&quot; minSpareThreads=&quot;25&quot; maxSpareThreads=&quot;75&quot;
+       enableLookups=&quot;false&quot; redirectPort=&quot;443&quot; acceptCount=&quot;100&quot;
+       connectionTimeout=&quot;20000&quot; disableUploadTimeout=&quot;true&quot; /&gt;
+&gt;&gt; Find:
+    
+&gt;&gt; Correct &lt;pfxPassword&gt; and Replace with:
+    &lt;Connector port=&amp;quot;443&amp;quot;
+protocol=&amp;quot;org.apache.coyote.http11.Http11NioProtocol&amp;quot;
+        maxThreads=&amp;quot;150&amp;quot; SSLEnabled=&amp;quot;true&amp;quot;
+scheme=&amp;quot;https&amp;quot; secure=&amp;quot;true&amp;quot;
+        clientAuth=&amp;quot;false&amp;quot; sslProtocol=&amp;quot;TLS&amp;quot;
+keystoreType=&amp;quot;PKCS12&amp;quot; 
+        keystoreFile=&amp;quot;/opt/tomcat/latest/conf/US.pfx&amp;quot;
+keystorePass=&amp;quot;&amp;lt;pfxPassword&gt;&quot; /&gt;
+&gt;&gt;Ctrl-x, Y, &lt;enter&gt;
+
+systemctl restart tomcat
+
+# Install Guacamole into tomcat:
+wget --trust-server-names
+&quot;<a  rel="nofollow" href="http://apache.org/dyn/closer.cgi?action=download&amp;filename=guacamole/1.0.0/binary/guacamole-1.0.0.war&quot">http://apache.org/dyn/closer.cgi?action=download&amp;filename=guacamole/1.0.0/binary/guacamole-1.0.0.war&quot</a>;
+-O &quot;/root/guacamole.war&quot;
+cp /root/guacamole.war /opt/tomcat/latest/webapps/guacamole.war
+
+# Only allow port 443 to be publicly accessed:
+firewall-cmd --permanent --zone=drop --remove-port=8443/tcp
+firewall-cmd --permanent --zone=drop --remove-port=8080/tcp
+firewall-cmd --reload
+
+
+&gt;&gt;&gt;&gt;Add scheduled reboot to clean up old logons - using: 
+crontab -e
+&gt;&gt;&gt;&gt; Insert: i
+&gt;&gt;&gt;&gt; Command mode: &lt;Esc&gt;
+&gt;&gt;&gt;&gt; Delete current line: dd
+&gt;&gt;&gt;&gt; Save and Exit: :wq
+&gt;&gt;&gt;&gt; DO NOT save and quit: :q! 
+&gt;&gt;SHELL=/bin/bash
+&gt;&gt;MAILTO=&quot;&quot;
+&gt;&gt;PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
+&gt;&gt;01 03 * * * /sbin/shutdown -r
+
+
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;   Add MySQL Extension
+
+&gt;&gt; If the tomcat manager is disabled, then re-enable by Copying from
+&gt;&gt; Windows: TomcatManager.zip ---&gt; /root/
+cd /
+mv /root/TomcatManager.zip /TomcatManager.zip
+unzip TomcatManager.zip
+rm TomcatManager.zip
+echo '&lt;tomcat-users xmlns=&quot;<a  rel="nofollow" href="http://tomcat.apache.org/xml&quot">http://tomcat.apache.org/xml&quot</a>; 
+       xmlns:xsi=&quot;<a  rel="nofollow" href="http://www.w3.org/2001/XMLSchema-instance&quot">http://www.w3.org/2001/XMLSchema-instance&quot</a>;
+       xsi:schemaLocation=&quot;<a  rel="nofollow" href="http://tomcat.apache.org/xml">http://tomcat.apache.org/xml</a> tomcat-users.xsd&quot;
+       version=&quot;1.0&quot;&gt;
+   &lt;role rolename=&quot;admin-gui&quot;/&gt;
+   &lt;role rolename=&quot;manager-gui&quot;/&gt;
+   &lt;role rolename=&quot;manager-scripts&quot;/&gt;
+   &lt;user username=&quot;admin&quot; password=&quot;adminPassword&quot;
+roles=&quot;admin-gui,manager-gui,manager-scripts&quot;/&gt;
+&lt;/tomcat-users&gt;' &gt; /opt/tomcat/apache-tomcat-8.5.38/conf/tomcat-users.xml
+systemctl restart tomcat
+
+# Remove Guacamole from tomcat before proceeding:
+rm /opt/tomcat/latest/webapps/guacamole.war
+
+#  Install MySQL:
+cd ~
+wget &quot;<a  rel="nofollow" href="http://repo.mysql.com/mysql-community-release-el7-5.noarch.rpm&quot">http://repo.mysql.com/mysql-community-release-el7-5.noarch.rpm&quot</a>;
+rpm -ivh mysql-community-release-el7-5.noarch.rpm
+yum -y update
+yum -y install mysql-server
+
+systemctl start mysqld
+systemctl daemon-reload
+systemctl status mysqld
+systemctl enable mysqld
+
+# Secure MySQL
+mysql_secure_installation
+# &quot;yes&quot; to: change the MySQL root password, remove anonymous user accounts,
+disable root logins outside of localhost, and remove test databases. 
+# Set Root password = &quot;adminPassword&quot;
+
+reboot
+
+## If needed: Reset Root Password:
+systemctl stop mysqld
+mysqld_safe --skip-grant-tables &amp;
+&gt;&gt;&gt;&gt; Follow 5 lines must be manually entered:
+mysql -u root
+use mysql;
+update user SET PASSWORD=PASSWORD(&quot;adminPassword&quot;) WHERE USER='root';
+flush privileges;
+exit
+&gt;&gt;&gt;
+pkill mysqld_safe
+pkill mysqld
+## End of Reset Root Password
+
+# Grant remote admin rights (but still block access using the firewall):
+systemctl start mysqld
+mysql -u root --password=&quot;adminPassword&quot; -e &quot;CREATE USER 'root'@'%'
+IDENTIFIED BY 'adminPassword';GRANT ALL PRIVILEGES ON * . * TO 'root'@'%'
+WITH GRANT OPTION;FLUSH PRIVILEGES;&quot;
+
+# Set up Guacamole to use MySQL:
+cd ~
+wget --trust-server-names
+&quot;<a  rel="nofollow" href="http://apache.org/dyn/closer.cgi?action=download&amp;filename=guacamole/1.0.0/binary/guacamole-auth-jdbc-1.0.0.tar.gz&quot">http://apache.org/dyn/closer.cgi?action=download&amp;filename=guacamole/1.0.0/binary/guacamole-auth-jdbc-1.0.0.tar.gz&quot</a>;
+tar -xzf guacamole-auth-jdbc-1.0.0.tar.gz
+mv guacamole-auth-jdbc-1.0.0/mysql/guacamole-auth-jdbc-mysql-1.0.0.jar
+/etc/guacamole/extensions/guacamole-auth-02-jdbc-mysql-1.0.0.jar
+mkdir /etc/guacamole/schema
+mv guacamole-auth-jdbc-1.0.0/mysql/schema/ /etc/guacamole/
+wget
+&quot;<a  rel="nofollow" href="https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-8.0.15-1.el7.noarch.rpm&quot">https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-8.0.15-1.el7.noarch.rpm&quot</a>;
+rpm -ivh mysql-connector-java-8.0.15-1.el7.noarch.rpm
+mkdir /etc/guacamole/lib
+cp /usr/share/java/mysql-connector-java-8.0.15.jar /etc/guacamole/lib/
+
+# Build Guacamole's MySQL database &quot;guacamole_db&quot;:
+mysql -u root -p&quot;adminPassword&quot; -e &quot;create database guacamole_db&quot;
+cat /etc/guacamole/schema/*.sql | mysql -u root -p&quot;adminPassword&quot;
+guacamole_db
+mysql -u root -p&quot;adminPassword&quot; -e &quot;CREATE USER 'guacamole_user'@'localhost'
+IDENTIFIED BY 'adminGuacPassword';GRANT SELECT,INSERT,UPDATE,DELETE ON
+guacamole_db.* TO 'guacamole_user'@'localhost';FLUSH PRIVILEGES;&quot;
+systemctl stop tomcat
+
+echo '# MySQL properties
+mysql-hostname: localhost
+mysql-port: 3306
+mysql-database: guacamole_db
+mysql-username: guacamole_user
+mysql-password: adminGuacPassword' &gt;&gt; /etc/guacamole/guacamole.properties
+
+# Disable the static user-mapping.xml file, so that failed logon attempts
+don't get to logon:
+mv /etc/guacamole/user-mapping.xml /etc/guacamole/not-used-user-mapping.xml
+
+systemctl start tomcat
+
+# Reinstall Guacamole into tomcat:
+wget --trust-server-names
+&quot;<a  rel="nofollow" href="http://apache.org/dyn/closer.cgi?action=download&amp;filename=guacamole/1.0.0/binary/guacamole-1.0.0.war&quot">http://apache.org/dyn/closer.cgi?action=download&amp;filename=guacamole/1.0.0/binary/guacamole-1.0.0.war&quot</a>;
+-O &quot;/root/guacamole.war&quot;
+cp /root/guacamole.war /opt/tomcat/latest/webapps/guacamole.war
+
+&gt;&gt;&gt;&gt; Logon to guacamole with ID=guacadmin PW=guacadmin . Recommend making
+&gt;&gt;&gt;&gt; another user the full admin, and completely disabling guacadmin.
+
+&gt;&gt;&gt;&gt; If needed, set up temporary remote access to MySQL for MySQL Workbench
+&gt;&gt;&gt;&gt; on Windows
+firewall-cmd --permanent --zone=drop --add-port=3306/tcp
+firewall-cmd --reload
+
+&gt;&gt;&gt;&gt; Remove temporary access after finished with MySQL Workbench on Windows
+firewall-cmd --permanent --zone=drop --remove-port=3306/tcp
+firewall-cmd --reload
+
+&gt;&gt; To run MySQL statements from a Windows Powershell script, on Windows,
+&gt;&gt; ssh-keygen an rsa key pair, use the ssh utility to rename the rsa key
+&gt;&gt; pair to r...@mydomain.com,
+&gt;&gt;   then rename the Windows files to &quot;guac_rsa&quot; and &quot;guac_rsa.pub&quot;, then
+&gt;&gt; copy guac_rsa.pub ---&gt; Centos /root/
+&gt;&gt; On the CentOS computer,
+mkdir /root/.ssh
+touch /root/.ssh/authorized_keys
+chmod 700 /root/.ssh
+chmod 600 /root/.ssh/authorized_keys
+cat /root/guac_rsa.pub &gt;&gt; /root/.ssh/authorized_keys
+rm /root/guac_rsa.pub
+# Enable ssh server:
+systemctl daemon-reload
+systemctl start sshd
+systemctl status sshd
+systemctl enable sshd
+systemctl daemon-reload
+
+&gt;&gt;&gt;&gt;&gt; On Windows 2019 Powershell 5.1, add new user $u:
+$keyfile = 'C:\Users\' + $env:USERNAME +
+'\AppData\Roaming\Microsoft\ssh\guac_rsa'
+$env:term = 'xterm'
+#Embedded double quotes, for example the mysql -e parameter, needs to be in
+the form of: \`&quot;
+$bash = &quot;mysql -u root --password=adminPassword -e \`&quot;SET @salt :=
+UNHEX(SHA2(UUID(), 256)); INSERT INTO guacamole_db.guacamole_entity (name,
+type) VALUES ('&quot; + $u + &quot;', 'USER'); SELECT @eid := entity_id FROM
+guacamole_db.guacamole_entity WHERE type = 'USER' AND name = '&quot; + $u + &quot;';
+INSERT INTO guacamole_db.guacamole_user (entity_id, password_salt,
+password_hash, password_date) VALUES (@eid, @salt, UNHEX(SHA2(CONCAT('',
+HEX(@salt)), 256)), CURRENT_TIMESTAMP); INSERT INTO
+guacamole_db.guacamole_connection_permission (entity_id, connection_id,
+permission) VALUES (@eid, 1, 'READ'), (@eid, 2, 'READ'), (@eid, 3, 'READ'),
+(@eid, 4, 'READ'), (@eid, 5, 'READ');\`&quot;; exit&quot;
+ssh -i $keyfile r...@domain.com $bash
+
+&gt;&gt;To delete user $u, replace $bash with:
+$bash = &quot;mysql -u root --password=adminPassword -e \`&quot;SELECT @eid :=
+entity_id FROM guacamole_db.guacamole_entity WHERE type = 'USER' AND name =
+'&quot; + $u + &quot;'; DELETE FROM guacamole_db.guacamole_entity WHERE entity_id =
+@eid;\`&quot;; exit&quot;
+
+
+
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;  Radius Extension - allows Azure MFA
+&gt;&gt;&gt; Windows Server NPS config:
+&gt;&gt; Ideally a secure LAN between the Guacamole VM and the NPS Server, since
+&gt;&gt; PAP is the only protocol that works between them.
+&gt;&gt; Separate Connection and Network policies just for Guacamole, both using
+&gt;&gt; the &quot;Client Friendly Name&quot; condition.
+&gt;&gt; Type of Network Access Server in both policies = Unspecified
+&gt;&gt; Network Policy's Ignore User Account Dial-in Properties = Checked/Ticked
+&gt;&gt; Network Policy's Condition = &quot;User Groups&quot;, select your AD user group
+
+
+&gt;&gt;&gt; Create new VM &quot;Maven&quot;, similar config to &quot;Guacamole&quot; VM
+
+&gt;&gt;&gt; On Maven VM:
+yum -y install maven
+yum -y update
+
+reboot
+
+cd ~
+wget --trust-server-names
+&quot;<a  rel="nofollow" href="http://apache.org/dyn/closer.cgi?action=download&amp;filename=guacamole/1.0.0/source/guacamole-client-1.0.0.tar.gz&quot">http://apache.org/dyn/closer.cgi?action=download&amp;filename=guacamole/1.0.0/source/guacamole-client-1.0.0.tar.gz&quot</a>;
+tar -xzf guacamole-client-1.0.0.tar.gz
+cd guacamole-client-1.0.0/
+mvn package -Plgpl-extensions
+cp
+/root/guacamole-client-1.0.0/extensions/guacamole-auth-radius/target/guacamole-auth-radius-1.0.0.jar
+/root/guacamole-auth-radius-1.0.0.jar
+&gt;&gt;&gt;&gt;Copy /root/guacamole-auth-radius-1.0.0.jar ---&gt; Windows
+shutdown
+
+&gt;&gt;&gt; On Guacamole VM:
+&gt;&gt;&gt;&gt;Copy I:\Installables\Linux\Guacamole 1.0.0\Guacamole 1.0.0 Radius
+extension compiled\guacamole-auth-radius-1.0.0.jar ---&gt; /root/
+
+# Remove Guacamole from tomcat before proceeding:
+rm /opt/tomcat/latest/webapps/guacamole.war
+
+systemctl stop tomcat
+mv /root/guacamole-auth-radius-1.0.0.jar
+/etc/guacamole/extensions/guacamole-auth-01-radius-1.0.0.jar
+
+# If the static user-mapping.xml configuration file is not required (because
+MySQL is being used instead):
+mv /etc/guacamole/user-mapping.xml /etc/guacamole/not-used-user-mapping.xml
+
+echo 'radius-hostname: paris.yourdomain.com
+radius-auth-port: 1812
+radius-shared-secret: H8nter
+radius-auth-protocol: pap
+# OPTIONS: pap, chap, mschapv1, mschapv2, eap-md5, eap-tls, and eap-ttls.
+But only pap works with Windows NPS and Azure MFA.
+radius-retries: 5
+radius-timeout: 90' &gt;&gt; /etc/guacamole/guacamole.properties
+systemctl start tomcat
+
+# Reinstall Guacamole into tomcat:
+wget --trust-server-names
+&quot;<a  rel="nofollow" href="http://apache.org/dyn/closer.cgi?action=download&amp;filename=guacamole/1.0.0/binary/guacamole-1.0.0.war&quot">http://apache.org/dyn/closer.cgi?action=download&amp;filename=guacamole/1.0.0/binary/guacamole-1.0.0.war&quot</a>;
+-O &quot;/root/guacamole.war&quot;
+cp /root/guacamole.war /opt/tomcat/latest/webapps/guacamole.war
+
+
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;  Complete the configuration:
+
+#systemctl disable firewalld;systemctl stop firewalld
+
+# Start the firewall:
+systemctl start firewalld;systemctl enable firewalld
+
+
+# Disable Tomcat Manager:
+cd ~
+zip -r TomcatManager.zip /opt/tomcat/apache-tomcat-8.5.38/webapps/examples
+/opt/tomcat/apache-tomcat-8.5.38/webapps/manager
+/opt/tomcat/apache-tomcat-8.5.38/webapps/host-manager
+/opt/tomcat/apache-tomcat-8.5.38/webapps/ROOT
+/opt/tomcat/apache-tomcat-8.5.38/webapps/docs
+&gt;&gt;&gt; Move /root/TomcatManager.zip  ---&gt;  I:\   then Check its contents
+rm -Rf /opt/tomcat/apache-tomcat-8.5.38/webapps/examples
+rm -Rf /opt/tomcat/apache-tomcat-8.5.38/webapps/manager
+rm -Rf /opt/tomcat/apache-tomcat-8.5.38/webapps/host-manager
+rm -Rf /opt/tomcat/apache-tomcat-8.5.38/webapps/ROOT
+rm -Rf /opt/tomcat/apache-tomcat-8.5.38/webapps/docs
+echo '&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;tomcat-users xmlns=&quot;<a  rel="nofollow" href="http://tomcat.apache.org/xml&quot">http://tomcat.apache.org/xml&quot</a>; 
+   xmlns:xsi=&quot;<a  rel="nofollow" href="http://www.w3.org/2001/XMLSchema-instance&quot">http://www.w3.org/2001/XMLSchema-instance&quot</a>;
+   xsi:schemaLocation=&quot;<a  rel="nofollow" href="http://tomcat.apache.org/xml">http://tomcat.apache.org/xml</a> tomcat-users.xsd&quot;
+   version=&quot;1.0&quot;&gt;
+&lt;/tomcat-users&gt;' &gt; /opt/tomcat/apache-tomcat-8.5.38/conf/tomcat-users.xml
+&gt;&gt;&gt; Test Guacamole
+
+&gt;&gt;&gt;&gt; Cleanup:
+rm -f /root/{*,.*}
+
+&gt;&gt;&gt;&gt; Change IP Addresses and Check Hostname:  
+nmtui
+
+&gt;&gt;&gt; All the Best, David
+
+
+
+
+--
+Sent from: 
+<a  rel="nofollow" href="http://apache-guacamole-general-user-mailing-list.2363388.n4.nabble.com/">http://apache-guacamole-general-user-mailing-list.2363388.n4.nabble.com/</a>
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg02505.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#02507">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#02507">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg02508.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email tSliceCur"><span class="subject">Guacamole 1.0.0 with Radius and MySQL: Step-by-step for Linu...</span> <span class="sender italic">drhy</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg02508.html">Re: Guacamole 1.0.0 with Radius and MySQL: Step-by-step...</a></span> <span class="sender italic">drhy</span></li>
+<li class="icons-email"><span class="subject"><a href="msg02515.html">Guacamole 1.0.0 with Radius and MySQL: Step-by-step for...</a></span> <span class="sender italic">drhy</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg02520.html">Re: Guacamole 1.0.0 with Radius and MySQL: Step-by-...</a></span> <span class="sender italic">PlayerOne</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg02521.html">Re: Guacamole 1.0.0 with Radius and MySQL: Step...</a></span> <span class="sender italic">Robert Dinse</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg02527.html">Re: Guacamole 1.0.0 with Radius and MySQL: ...</a></span> <span class="sender italic">Nick Couchman</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg02528.html">Re: Guacamole 1.0.0 with Radius and My...</a></span> <span class="sender italic">Kamal Ezzaki</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg02529.html">Re: Guacamole 1.0.0 with Radius an...</a></span> <span class="sender italic">Kamal Ezzaki</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg02530.html">Re: Guacamole 1.0.0 with Radiu...</a></span> <span class="sender italic">drhy</span></li>
+<li class="icons-email"><span class="subject"><a href="msg02535.html">Re: Guacamole 1.0.0 with Radiu...</a></span> <span class="sender italic">Nick Couchman</span></li>
+<li class="icons-email"><span class="subject"><a href="msg02540.html">Re: Guacamole 1.0.0 with Radiu...</a></span> <span class="sender italic">PlayerOne</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Guacamole 1.0.0 with Radius and MySQL: Step-by-step for Linux newbies">
+<input type="hidden" name="msgid" value="1550569041558-0.post@n4.nabble.com">
+<input type="hidden" name="relpath" value="user@guacamole.apache.org/msg02507.html">
+<input type="submit" value=" drhy ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="user@guacamole.apache.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search user">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/user@guacamole.apache.org/">user - all messages</a></li>
+<li class="icons-about"><a href="/user@guacamole.apache.org/info.html">user - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=user@guacamole.apache.org&amp;q=subject:%22Guacamole+1.0.0+with+Radius+and+MySQL%5C%3A+Step%5C-by%5C-step+for+Linux+newbies%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg02505.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg02508.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">1550569041558-0.post@n4.nabble.com</li>
+</ul>
+</div>
+</body>
+</html>

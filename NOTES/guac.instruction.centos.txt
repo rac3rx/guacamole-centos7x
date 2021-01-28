@@ -1,0 +1,944 @@
+Tutorial to install and run Guacamole with LDAP, MS Active directory (AD) authentication with MySQL profile store
+https://sourceforge.net/p/guacamole/discussion/1110834/thread/36a311c4/
+
+   Forum: Help
+   Creator: ypslinux
+   Created: 2016-02-08
+   Updated: 2016-04-28
+     * ypslinux
+       ypslinux - 2016-02-08
+I am posting this tutorial to install and run Guacamole 0.9.9 in CentOS 7.2 environment based upon a request
+from the forum user Vince Ogne.
+
+My first objective was to define both MySQL and LDAP authentication mechanism to enable the usage of my
+MS Active Directory  environment to authenticate users, but keep the user and connection profiles in MySQL.
+For those who do not need LDAP authentication, simply remove the LDAP parameters from the properties file
+to only use MySQL for authentication.
+
+My second objective was to show how to build the Guacamole client from source tarball to allow the Guacamole
+logos and Login screen text to be replaced by custom ones. Therefore if you do not want to customize, just skip the customization
+and go to the maven build step of Guacamole client.
+
+Please read the guacamole official document to perform Guacamole installation. This note below should not be used as the definitive guide
+to install Guacamole.
+
+I have included detail step-by-step I had taken to configure Guacamole server and client in CentOS 7.x via tarballs below
+for those users of CentOS 7.x. I hope it will help you.
+
+Please refer to Vince's original forum request:
+https://sourceforge.net/p/guacamole/discussion/1110834/thread/c7987fdb/
+
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+***********.... Here is the detail step by step for CentOS users:
+
+... CentOS 7.x
+
+... The build information in the Guacamole document is very accurate please read it first. this is a quickstart doc for CentOS users
+
+...  Guacamole Manual for installation:  http://guac-dev.org/doc/gug/installing-guacamole.html
+
+...  Here is a quick howto guide I used for the CentOS 7.x environment
+
+STEP1:
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*
+* Intall the Development environment
+*
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+
+....Install a very bare mimimun installation of CentOS 7.x
+
+.... Allow SELinux run in permissive  (i.e. SELINUX=permissive  ) and do not disable it.
+.... Allow firewallD to run and do not disable it. The Tomcat port 8080 will be opened
+.... at the end of the instruction to permit guacamole requests to traverse the firewall.
+....
+
+... All these commands in this instruction require root access. You must be running root not sudo
+
+STEP2:
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*
+* Intall the CentOS 7.x Development environment
+*
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+
+... Build environment for guacd
+... The following yum commands will satisfy all the necessary build environment for guacd
+
+yum groupinstall "Development tools"
+
+yum install  cairo-devel libpng-devel uuid-devel pango-devel
+yum install  libssh2-devel  pulseaudio-libs-devel libvorbis-devel
+yum install  freerdp  freerdp-devel freerdp-plugins
+yum install  libjpeg  libjpeg-devel
+yum install  libwebp  libwebp-devel
+yum install  libjpeg-turbo  uuid-devel
+
+... I do not expose VNC nor telnet, therefore I did not install those two libraries
+
+...###   yum install libvncserver-devel libtelnet-devel
+
+... Optional and required for ssh and telnet protocol. I did not install them in my system
+
+...###   yum install  dejavu-sans-mono-fonts.noarch
+
+... or the gnu version
+
+...###   yum install  gnu-free-mono-fonts.noarch
+
+... Centos 7.x has all the Guacamole dependencies except for the package terminus-fonts.
+... Therefore, the EPL is not required to successfully build Guacamole 0.9.9.
+... You may download and  yum  install  terminus-fonts-4.38-3.el7.noarch.rpm  terminus-fonts-console-4.38-3.el7.noarch.rpm manually.
+
+... or install the terminus-fonts version  for telnet, vnc and SSH Guacamole
+... sessions (to be located manually from fedora or other RPM base repo)
+... Try this location http://dl.fedoraproject.org/pub/epel/7/x86_64/t/
+... for  terminus-fonts-4.38-3.el7.noarch.rpm   and  terminus-fonts-console-4.38-3.el7.noarch.rpm
+
+...###   yum install  terminus-fonts
+
+STEP3:
+
+... I use the distro version of of the java JVM because it is automatically maintained
+... Install the openjdk and its development tools of the distro version to run tomcat and to compile guacamole client
+
+yum  install java-1.8.0-openjdk java-1.8.0-openjdk-headless java-1.8.0-openjdk-devel
+
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*
+* Configure Java openJDK ENV parameters
+*
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+
+STEP4:
+....  Create startup ENV parameters for JDK and ensure the script has the suffix of   .sh  in /etc/profile.d
+....  to enable all users to automatically have access to the ENV variables
+....
+
+vi   /etc/profile.d/jdk.sh
+
+#
+# Java environmemnt
+#
+#
+# Ensure the JAVA_HOME root directory to have sub directories of " bin  include  jre  lib  tapset "
+#
+#
+export JAVA_HOME=/etc/alternatives/java_sdk_openjdk
+export JRE_HOME=$JAVA_HOME/jre
+export PATH=$PATH:$JRE_HOME/bin
+
+STEP5:
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*
+* Intall tomcat from distro
+*
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+
+.... Now install tomcat from distro
+
+... Install tomcat
+
+yum  install tomcat
+
+STEP6:
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*
+* Install Mariadb or the forked version of MySQL and secure it
+*
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+
+.... Now install Mariadb or the forked version of MySQL
+
+... Install MySQL
+
+yum  install mariadb-libs mariadb-server mariadb
+
+STEP7:
+
+...   setup mysql root password
+
+...start mariadb
+
+systemctl start   mariadb
+
+...Issue mysql admin command to set first time root password  and allow to be prompted to enter new password (i.e   mySqlRootpassword )
+... and do not use this password for the guacamole database. the Guacamole password will be defined later with the database
+...
+... Answer the prompt for the command below to allow you to set the MySQL root password
+...
+
+mysqladmin -u root password
+
+STEP8:
+
+...
+... Secure Mariadb by removing test and sample databases and users by issuing the command below and answer questions.
+...
+... Remove unwanted test databases and force mysql to run in localhost environment for security
+...
+...
+
+mysql_secure_installation
+
+STEP9:
+
+... Enable automatic startup at boot time and restart it
+
+systemctl enable mariadb.service
+
+STEP10:
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*
+* reboot the system to activate the environment parameters
+*
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+
+reboot
+
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*
+* Build the Guacamole server
+*
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+
+.....
+..... Now get ready to build the Guacamole server
+.....
+
+STEP11:  Build the server
+
+... The build information is very accurate please read it first. This is a quickstart doc for CentOS users
+
+...  Guacamole Manual for installation:  http://guac-dev.org/doc/gug/installing-guacamole.html
+
+.....
+.... Create build area
+.....
+
+mkdir   /mybuildarea
+
+.....
+.... Prepare to get the guacamole server either from tarball or github
+.....
+
+STEP12:
+....
+....  Build guacd  server from TARBALL
+....
+
+... Compile Guacamole server from tarball
+
+... Change to build area directory
+
+cd        /mybuildarea
+
+.... Get the tarball
+
+wget -c http://sourceforge.net/projects/guacamole/files/current/source/guacamole-server-0.9.9.tar.gz/download \
+-O ./guacamole-server-0.9.9.tar.gz
+
+.....
+...untar guacamole server
+.....
+
+tar -xzf guacamole-server-0.9.9.tar.gz
+
+cd guacamole-server-0.9.9/
+
+./configure --with-init-dir=/etc/init.d   --libdir=/usr/local/lib
+
+make
+
+make install
+
+ldconfig
+
+... Location of guacamole server deloyment
+
+...Libraries have been installed in:      /usr/local/lib
+
+STEP13:
+
+...
+...
+... Guacd had problem in the centOS environment locating freeRDP because of 64 bit lib naming convention,
+... therefore this symbolic link was used as a workaround.
+...
+...
+...
+... Remove possible early Guacamole sybolic links  from that folder
+...
+... Do not worry... ONLY Guacamole stuff will be removed in that location
+...
+
+rm  /usr/lib64/freerdp/guac*  -fr
+
+... Create new symlink to allow freeRDP and Guacamole to interface
+
+ln -s /usr/local/lib/freerdp/guac*   /usr/lib64/freerdp/
+
+STEP14:
+
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*
+* Install the Apache maven from source in order to build Guacamole Client from tarball and avoid unnecessary CentOS 7.x
+*
+* unnecessary dependencies
+*
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+
+...
+... Install maven and  Set the maven  ENV variables at boot time
+...
+...
+
+...
+... Obtain maven  from Apache repository and Install maven in /opt/Apache
+... The CentOS yum dependency list pulls a lot of unnecessary packages like jboss and  (+67 Dependent packages) and Guacamole does not need them.
+...
+
+...
+... Create the directory where to install maven
+...
+
+mkdir -p /opt/vendors/Apache/
+
+cd   /opt/vendors/Apache/
+
+wget -c  http://www.trieuvan.com/apache/maven/maven-3/3.3.3/binaries/apache-maven-3.3.3-bin.tar.gz
+
+... Untar the maven tarball
+
+tar zxvf  apache-maven-3.3.3-bin.tar.gz
+
+...
+... create symbolic link
+...
+
+ln -s  apache-maven-3.3.3     maven
+
+STEP15:
+...
+... configure maven ENV variables at login time
+...
+
+vi   /etc/profile.d/maven.sh
+
+#
+# Apache Maven environmemnt
+#
+export MAVEN_HOME=/opt/vendors/Apache/maven
+export PATH=$PATH:$MAVEN_HOME/bin
+
+STEP16:
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*
+* reboot the system to activate the environment parameters
+*
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+
+reboot
+
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*
+* Check the installation status of java and maven in order to build the Guacamole Web client
+*
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+
+.....
+.....
+.....  Get ready to build the  Guacamole client from tarball
+.....
+.....
+
+STEP17:
+
+.... Test Java and maven by obtaining the current version.
+
+... Test java. If fail check your path parameters in /etc/profile.d/jdk.sh
+
+java   -version
+
+... test maven. If fail check your path parameters in /etc/profile.d/maven.sh
+
+mvn  -v
+
+STEP18:
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*
+* Download, customize logos and  build Guacamole client from tarball
+*
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+
+....  Build Guacamole java client from tarball  via maven
+
+.... Create build area
+
+mkdir   /mybuildarea
+
+... Change to build area directory
+
+cd        /mybuildarea
+
+...
+... get the  Guacamole client
+...
+
+wget -c http://sourceforge.net/projects/guacamole/files/current/source/guacamole-client-0.9.9.tar.gz/download \
+-O ./guacamole-client-0.9.9.tar.gz
+
+... Untar the Guacamole clienttarball
+
+tar zxvf  guacamole-client-0.9.9.tar.gz
+
+STEP19:
+
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*
+* Customize Guacamole Client logos
+*
+* The Guacamole Web Client WAR file can easily be downloaded and and integrate with the servlet environment, but this step
+* illustrates how to generate the Guacamole client WAR file from tarball source and customize the logos.
+*
+*
+*
+* This example will illustrate how to customize the icons and the text in the login screen
+*
+*
+*
+*  ....  guac-tricolor.png    ( 256 x 256 )
+*  ....  logo-144.png         ( 144 x 144 )
+*  ....  logo-64.png          (  64 x 64  )
+*
+*
+*
+* .... You may skip to step 20 if you do not need to customize the logos to just build the web client
+*
+*
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+
+...
+...
+..... customize  logo and login screen text
+...
+...
+
+...
+..... customize login screen text
+...
+
+... Go to guacamole-client/guacamole/src/main/webapp/translations
+
+cd  /mybuildarea/guacamole-client-0.9.9/guacamole/src/main/webapp/translations
+
+.....  Backup the original  en.json file
+
+cp en.json    en.json.yps.bkup
+
+... Edit the Login text string  for english config
+
+vi   en.json
+
+... change string from
+
+        "NAME" : "Guacamole ${project.version}",
+
+.... to
+
+        "NAME" : "Cloud Services GUI Portal - ${project.version}",
+
+...
+..... customize logo screen via GIMP for /GNU/Linux or  MS Windows
+...
+..... Create your own three logo files via GIMP with the following sizes in pixel to match and replace the originals
+
+....  guac-tricolor.png    ( 256 x 256 )
+....  logo-144.png         ( 144 x 144 )
+....  logo-64.png          (  64 x 64  )
+
+....
+....
+....
+.... Backup the original three logo files and replace them with the ones created from GIMP
+....
+....
+
+... Go to guacamole-client/guacamole/src/main/webapp/images
+
+cd  /mybuildarea/guacamole-client-0.9.9/guacamole/src/main/webapp/images
+
+cp  guac-tricolor.png    guac-tricolor.png.yps.bkup
+cp  logo-144.png         logo-144.png.yps.bkup
+cp  logo-64.png          logo-64.png.yps.bkup
+
+.... Now copy your own  version of the logo files
+
+cp  /mybuildarea/my-new-logo-info/guac-tricolor.png   .
+
+cp  /mybuildarea/my-new-logo-info/yps-login-logo-info/logo-144.png        .
+
+cp  /mybuildarea/my-new-logo-info/yps-login-logo-info/logo-64.png         .
+
+STEP20:
+
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+...
+... Get into the guacamole-client directory and use maven to build the environment
+...
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+********************************************************************************************************************************************
+
+cd /mybuildarea/guacamole-client-0.9.9
+
+mvn package
+
+...
+... Now  the guacamole client and the JDBC authentication plugins have been created in their
+... respective directories
+...
+
+/mybuildarea/guacamole-client-0.9.9/extensions/guacamole-auth-jdbc/modules/guacamole-auth-jdbc-mysql/target/guacamole-auth-jdbc-mysql-0.9.9.jar
+
+/mybuildarea/guacamole-client-0.9.9/extensions/guacamole-auth-ldap/target/guacamole-auth-ldap-0.9.9.jar
+
+/mybuildarea/guacamole-client-0.9.9/guacamole/target/guacamole-0.9.9.war
+
+.....
+.....
+.....  Get ready to configure  Guacamole
+.....
+.....
+
+STEP21:
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+********************************************************************************************************************************************
+.....
+..... Configure guacamole after the build process
+.....
+..... Create the Guacamole directory structure store the property file, the WAR files and the JDBC authentication plugins jars
+.....
+
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*
+* Configure the Guacamole environment
+*
+*
+* In general, GNU/Linux uses the /etc  to define configuration files as best practice. Therefore, to keep
+* my Linux environement within this tradition, I created /var/lib/guacamole directory to store the
+* Guacamole artifacts and the /etc/guacamole directory to refer to the GUACAMOLE_HOME via symbolic links
+* of /var/lib/guacamole.
+*
+* You may choose not to use the symbolic links by simply refer to GUACAMOLE_HOME from /etc/guacamole.
+* However, the symbolic links make the Linux environment more compliant to the Linux standard usage of /etc
+*
+*
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+
+.....
+.... integrate guacamole with tomcat and guacd
+.....
+
+.....
+..... Create the Guacamole directory structure to store the Guacamole artifacts
+.....
+
+mkdir -p /var/lib/guacamole
+mkdir -p /var/lib/guacamole/lib
+mkdir -p /var/lib/guacamole/extensions
+mkdir -p /var/lib/guacamole/webclient
+
+.....
+..... Create the Guacamole conf directory structure for GUACAMOLE_HOME
+.....
+
+mkdir  /etc/guacamole
+
+cd /etc/guacamole
+
+....
+....  delete possible old symbolic links if re-running those steps
+....
+
+rm   lib                  -rf
+rm   extensions           -rf
+rm   guacamole.properties -rf
+rm   logback.xml          -rf
+
+ln  -s /var/lib/guacamole/lib                   lib
+ln  -s /var/lib/guacamole/extensions            extensions
+
+ln  -s /var/lib/guacamole/guacamole.properties  guacamole.properties
+ln  -s /var/lib/guacamole/logback.xml           logback.xml
+
+STEP22:
+...
+... Load the extensions JAR files
+...
+
+cp /mybuildarea/guacamole-client-0.9.9/extensions/guacamole-auth-jdbc/modules/guacamole-auth-jdbc-mysql/target/guacamole-auth-jdbc-mysql-0.9.9.jar   /var/lib/guacamole/extensions
+
+cp /mybuildarea/guacamole-client-0.9.9/extensions/guacamole-auth-ldap/target/guacamole-auth-ldap-0.9.9.jar       /var/lib/guacamole/extensions
+
+STEP23:
+...
+... Copy the guacamole client WAR file from the build area to the guacamole webclient area
+...
+
+cp  /mybuildarea/guacamole-client-0.9.9/guacamole/target/guacamole-0.9.9.war     /var/lib/guacamole/webclient
+
+STEP24:
+...
+... Load the client WAR file via symlink into the tomcat webapps/ folder
+...
+
+... Remove the possible old guacamole war file
+
+rm  /var/lib/tomcat/webapps/guacamole.war
+
+.... Remove the possible deployed guacamole application folder
+
+rm  /var/lib/tomcat/webapps/guacamole  -fr
+
+ln -s /var/lib/guacamole/webclient/guacamole-0.9.9.war     /var/lib/tomcat/webapps/guacamole.war
+
+STEP25:
+
+...
+...  Obtain the latest MySQL connector driver form Oracle/MySQL site and place it into the guacamole lib directory
+...
+
+mkdir   /mybuildarea/mysql-java-connector
+
+cd      /mybuildarea/mysql-java-connector
+
+.... get the latest Mysql Java connector
+
+wget -c https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-5.1.38.tar.gz
+
+tar zxvf mysql-connector-java-5.1.38.tar.gz
+
+cp   mysql-connector-java-5.1.38/mysql-connector-java-5.1.38-bin.jar    /var/lib/guacamole/lib
+
+STEP26:
+...
+... Create a symbolic link into the tomcat area to associate the GUACAMOLE_HOME with the guacamole app using the  .guacamole  paradigm
+...
+
+... Remove possible old symlink to prevent nested  symbolic link
+
+rm /usr/share/tomcat/.guacamole -fr
+
+ln -s /etc/guacamole   /usr/share/tomcat/.guacamole
+
+STEP27:
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*
+* Define the Guacamole database to be used to store user and connection profiles
+*
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+*********************************************************************************************************************************************
+
+...
+... Now define the Guacamole database which will be used as resource repository and authentication.
+...
+
+...
+... Here are the parameters to configure in mariaDb (MySQL).
+...
+...
+...  Please change those parameters to your own custom ones
+...
+...
+... Database name     : guacamoleAuthDB
+... Database user     : guacamoleuser
+... Database Passwd   : MyGuacaPassW$2016
+... Database hostname : localhost
+...
+...
+...
+
+...  creating the database for Guacamole.
+...
+...  Invoke Mariadb (or MySQL) shell and enter root password created in STEP7
+...
+
+mysql -p
+
+    CREATE DATABASE guacamoleAuthDB;
+
+    GRANT ALL PRIVILEGES ON guacamoleAuthDB.* TO 'guacamoleuser'@'localhost'  IDENTIFIED BY 'MyGuacaPassW$2016';
+
+    FLUSH PRIVILEGES;
+
+    exit
+
+STEP28:
+...
+... Load the Guacamole database "guacamoleAuthDB " with its schema and the default userid  guacadmin and password guacadmin
+...
+
+...
+... Change to the directory for the MySQL schema
+...
+
+cd  /mybuildarea/guacamole-client-0.9.9/extensions/guacamole-auth-jdbc/modules/guacamole-auth-jdbc-mysql/schema
+
+...
+... load the schema and enter the mariaDB ( MySQl) root password that was et in STEP7   (i.e.   mySqlRootpassword )
+... not the one guacamoleAuthDB
+...
+
+cat ./*.sql | mysql -u root -p guacamoleAuthDB
+
+...Use ONLY if being upgraded from previous version otherwise skip this step
+
+cat upgrade-pre-0.9.9.sql  | mysql -u root -p guacamoleAuthDB
+
+STEP29:
+...
+... Create guacamole properties file
+...
+... I have defined both MySQL and LDAP authentication mechanism because I needed to use my AD environment
+... but keep the connection profiles in MySQL.
+...
+... For those who do not need LDAP authentication, simply remove the LDAP parameters from the properties file
+... to only use MySQL for authentication
+...
+
+vi /var/lib/guacamole/guacamole.properties
+
+# Define LDAP and MySQL for authentication and profile repository
+
+# Hostname and port of guacamole proxy
+
+guacd-hostname: localhost
+guacd-port: 4822
+
+####LDAP properties optional for people with MS Active Directory / lDAP environment
+
+ldap-hostname:             msaddc01.example.com
+ldap-port:                 389
+ldap-user-base-dn:         ou=users,ou=corp,DC=example.com,DC=com
+ldap-search-bind-dn:       CN=guacalookup,ou=users,ou=corp,DC=example.com,DC=com
+ldap-search-bind-password: guacapassw
+ldap-username-attribute:   sAMAccountName
+#
+# For openLDAP tree use uid attribute instead of Activ Directory sAMAccountName
+#
+#yps ldap-username-attribute: uid
+
+####MySQL properties
+
+mysql-hostname: localhost
+
+mysql-port:     3306
+mysql-database: guacamoleAuthDB
+mysql-username: guacamoleuser
+mysql-password: MyGuacaPassW$2016
+
+# Additional settings
+
+mysql-disallow-duplicate-connections: false
+
+#
+# End of config
+#
+
+STEP30:
+...
+...
+.... Create  guacamole Web Client log4j  config file to catch guacamole errors
+...
+...  This step is optional and should be used to set debug level
+...
+
+vi /var/lib/guacamole/logback.xml
+
+<configuration>
+
+    <!-- Appender for debugging -->
+    <appender name="GUAC-DEBUG" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Log at DEBUG level -->
+    <root level="debug">
+        <appender-ref ref="GUAC-DEBUG"/>
+    </root>
+
+</configuration>
+
+STEP31:
+.....
+.....
+.....  Now ensure the proper permission for guacamoleAuthDB enter mariaDB (MySQL) and set the permission again
+.....  after loading the schema
+.....
+
+...
+...
+...  Invoke Mariadb (or MySQL) shell and enter root password created in STEP7   (i.e.   mySqlRootpassword )
+...
+
+mysql -p
+
+    GRANT ALL PRIVILEGES ON guacamoleAuthDB.* TO 'guacamoleuser'@'localhost'  IDENTIFIED BY 'MyGuacaPassW$2016';
+
+    FLUSH PRIVILEGES;
+
+    exit
+
+STEP32:
+.....
+.....
+.....  Get ready to configure CentOS 7.x firewallD to allow Tomcat / Guacamole to be access via default port 8080
+.....
+.....
+
+............ The default Firewall should remain on and simply allow port 8080 traffic for  tomcat
+............ Now issue firewall rules command to allow the tomcat port 8080 to be dynamically and at boot time
+
+firewall-cmd              --add-port=8080/tcp
+firewall-cmd  --permanent --add-port=8080/tcp
+
+STEP33:
+
+.....  Start Guacamole tomcat and guacd
+
+.... Enable  tomcat at boot time
+systemctl enable tomcat
+
+.... Start tomcat
+systemctl start tomcat
+
+.... Enable  guacd  at boot time
+systemctl enable guacd
+
+.... Run 'systemctl daemon-reload' to reload units since Guacamole was rebuilt.
+
+systemctl daemon-reload
+
+... Start the guacd daemon
+
+systemctl start  guacd
+
+STEP34:
+....
+.... Define in your MS Active Directory a simple Domain User account  (i.e. guacalookup ) or any any other name to be used
+.... by Guacamole to scan and locate the sAMAccountName in MS AD.
+.... The User account must be specified at two locations in the MS Active Directory environment.
+.... Therefore, the Display name ( LDAP DN ) and User login name ( sAMAccountName of the AD Attribute)
+.... must have the same string to work (i.e guacalookup or other name of chose )
+....
+.... The user account and password will be used in the Guacamole properties config file directives:
+....
+....  ldap-search-bind-dn:       CN=guacalookup,ou=users,ou=corp,DC=example.com,DC=com
+....  ldap-search-bind-password: guacapassw
+....
+
+STEP35:
+
+.....
+..... Point your browser to the IP address of your tomcat/ guacamole server and enter userid guacadmin   and   password guacadmin
+.....
+
+http://xxx.xxx.xxx.xxx:8080/guacamole
+
+.... Login with userid and password:
+
+userid:           guacadmin
+and   password:   guacadmin
+
+Have fun !!!
+
+Regards,
+
+Ypslinux
+
+
+       If you would like to refer to this comment somewhere else in this project, copy and paste the following link:
+       https://sourceforge.
+          +
+
+     * Pelle Hanses
+       Pelle Hanses - 2016-04-28
+       Do you have to create accounts in Guacamole for all accounts in AD? We have ...
+
+       If you would like to refer to this comment somewhere else in this project, copy and paste the following link:
+       https://sourceforge.
+          +
+
+   About Site Status @sfnet_ops
+   Create a Project Open Source Software Business Software Top Downloaded Projects
+   Blog @sourceforge
+   Articles Site Documentation Support Request
+   © 2021 Slashdot Media. All Rights Reserved.
+   Terms Privacy Opt Out Advertise
+
+Get latest updates about Open Source Projects, Conferences and News.
+
+   Sign Up No, Thank you
