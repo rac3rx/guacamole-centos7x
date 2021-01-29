@@ -15,17 +15,23 @@ rpm -Uvh https://download1.rpmfusion.org/free/el/rpmfusion-free-release-7.noarch
 
 sed -i 's/=enforcing/=permissive/' /etc/selinux/config
 
-systemctl reboot -i
+#systemctl reboot -i
 
 yum -y install cairo-devel dejavu-sans-mono-fonts ffmpeg-devel freerdp freerdp-devel freerdp-plugins gcc gnu-free-mono-fonts libjpeg-turbo libjpeg-turbo-devel libjpeg-devel libpng-devel libssh2-devel libssh-devel libtool libvncserver-devel libvorbis-devel libwebp libwebp-devel libwebsockets-devel openssl-devel pango-devel pulseaudio-libs-devel terminus-fonts uuid-devel
+
+# executed on host
+# ssh-keygen -b 2048 -t rsa -f /tmp/host2guestSshkey -q -N ""
+# ssh-keygen -q -N ""
+yum –y install openssh-server openssh-clients
+sudo systemctl start sshd
+sudo systemctl enable sshd
 
 yum -y install terminus-fonts lynx mlocate
 yum -y groupinstall "Development Tools"
 cd /tmp
 curl -O https://archive.apache.org/dist/guacamole/1.3.0/source/guacamole-server-1.3.0.tar.gz
-# git clone git://github.com/apache/guacamole-server.git
 curl -O https://mirrors.ocf.berkeley.edu/apache/guacamole/1.3.0/binary/guacamole-1.3.0.war
-reboot    # take snapshot
+#reboot    # take snapshot
 
 tar xzvf guacamole-server-1.3.0.tar.gz
 cd guacamole-server-1.3.0
@@ -52,8 +58,6 @@ tar zxvf /tmp/apache-tomcat-8.5.61.tar.gz -C /opt/tomcat/ --strip-components=1
 chown -R tomcat:tomcat /opt/tomcat
 chmod -R g+r /opt/tomcat/conf
 for i in logs temp webapps work; do if [ ! -d /opt/tomcat/$i ]; then mkdir $i; fi; done
-#for i in logs temp webapps work; do chmod -R g+w /opt/tomcat/$i; done
-#for i in logs temp webapps work; do chmod -R g+s /opt/tomcat/$i; done
 chmod -R g+w /opt/tomcat/logs
 chmod -R g+w /opt/tomcat/temp
 chmod -R g+w /opt/tomcat/webapps
@@ -68,7 +72,7 @@ chmod -R g+s /opt/tomcat/work
 chgrp -R tomcat /opt/tomcat
 chmod -R g+r /opt/tomcat/conf/
 chmod g+x /opt/tomcat/conf/
-# if doesn't exists
+
 for i in work temp logs; do mkdir /opt/tomcat/$i; done
 for i in webapps work temp logs; do chown -R tomcat /opt/tomcat/$i; done
 
@@ -95,13 +99,6 @@ Restart=always
 WantedBy=multi-user.target
 EOF
 
-
-#echo '# setup JAVA_HOME' >> ~/.bash_profile
-#echo 'export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))' >> ~/.bash_profile
-#echo 'export PATH=$PATH:$JAVA_HOME/bin' >> ~/.bash_profile
-#echo 'export CLASSPATH=.:$JAVA_HOME/jre/lib:$JAVA_HOME/lib:$JAVA_HOME/lib/tools.jar' >> ~/.bash_profile
-#. ~/.bash_profile
-
 cat <<EOF>/etc/profile.d/openjdk.sh
 #
 # Java environmemnt
@@ -111,7 +108,8 @@ cat <<EOF>/etc/profile.d/openjdk.sh
 #
 export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
 export JRE_HOME=$(dirname $(dirname $(readlink -f $(which java))))
-export PATH=$PATH:$JRE_HOME/bin
+export PATH=$PATH:$JRE_HOME/bin:$JAVA_HOME/bin:
+
 EOF
 
 systemctl daemon-reload
@@ -119,9 +117,6 @@ systemctl enable tomcat
 systemctl start tomcat
 echo "login with browser: http://localhost:8080"
 curl http://172.16.92.131:8080
-#curl -X POST -F 'username=username&password=password' localhost:8080/guacamole/api/
-#curl -X POST -F 'username=guacadmin&password=guacadmin' localhost:8080/guacamole/api/tokens
-#curl 'http://localhost:8080/guacamole/api/session/data/postgresql/connections?token=<TOKEN>'| jq
 
 
 yum -y install mariadb-server
@@ -133,7 +128,6 @@ mysql_secure_installation
 
 mysql -u root -p <<EOF
 
-# don't use hyphens in usernames
 CREATE DATABASE guacdb;
 CREATE USER 'guacdb_user'@'localhost' IDENTIFIED BY 'StrongPassword123!@#';
 GRANT ALL PRIVILEGES ON guacdb.* TO 'guacdb_user'@'localhost';
@@ -145,20 +139,17 @@ EOF
 echo "use guacdb; show tables;"|mysql -u guacdb_user -p
 mkdir -p /etc/guacamole/{extensions,lib}
 
-# https://dev.mysql.com/downloads/
 cd /tmp
 curl -LO https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-8.0.23.tar.gz
-#curl -LO https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-5.1.45.tar.gz
-#curl -LO https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-8.0.23-1.el7.noarch.rpm
 tar zxvf ./mysql-connector-java-8.0.23.tar.gz
 cp mysql-connector-java-*/mysql-connector-java-*.jar /etc/guacamole/lib/
 
 cd /tmp
 curl -LO "http://apache.org/dyn/closer.cgi?action=download&filename=guacamole/1.3.0/binary/guacamole-auth-jdbc-1.3.0.tar.gz"
-tar zxvf guacamole-auth-jdbc-1.3.0.tar.gz
-cp guacamole-auth-jdbc-1.3.0/mysql/guacamole-auth-jdbc-mysql-1.3.0.jar /etc/guacamole/extensions/
+tar zxvf guacamole-auth-jdbc-*.tar.gz
+cp guacamole-auth-jdbc-*/mysql/guacamole-auth-jdbc-mysql-*.jar /etc/guacamole/extensions/
 
-cd guacamole-auth-jdbc-0.9*/mysql/schema
+cd guacamole-auth-jdbc-*/mysql/schema
 cat *.sql | mysql -u root -p guacdb
 
 cp /tmp/guacamole-1.3.0.war /opt/tomcat/webapps/guacamole.war
@@ -179,16 +170,16 @@ mysql-default-max-connections-per-user: 0
 mysql-default-max-group-connections-per-user: 0
 EOF
 
+# setup GUACAMOLE_HOME
 echo "export GUACAMOLE_HOME=/etc/guacamole" >> /etc/profile.d/guacamole.sh
-#echo "export GUACAMOLE_HOME=/etc/guacamole" >> ~/.bash_profile
-#source ~/.bash_profile
 ln -s /etc/guacamole/ /root/.guacamole
 
+# restart services
 systemctl restart mariadb guacd tomcat
 
 echo "login with browser: http://localhost:8080/guacamole"
 curl -X POST -F 'username=guacadmin&password=guacadmin' localhost:8080/guacamole/api/tokens
-curl http://172.16.92.131:8080/guacamole/#/
+curl http://localhost:8080/guacamole/#/
 
 ##############################################################
 # MYSQL CRIB SHEET

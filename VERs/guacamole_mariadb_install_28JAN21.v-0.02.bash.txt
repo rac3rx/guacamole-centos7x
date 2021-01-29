@@ -78,8 +78,7 @@ Description=Apache Tomcat Web Application Container
 After=syslog.target network.target
 [Service]
 Type=forking
-Environment="JAVA_HOME=$(dirname $(dirname $(readlink $(readlink $(which java)))))"
-#Environment=JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.275.b08-0.el7_9.x86_64/jre
+Environment="JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))"
 Environment=CATALINA_PID=/opt/tomcat/temp/tomcat.pid
 Environment=CATALINA_HOME=/opt/tomcat
 Environment=CATALINA_BASE=/opt/tomcat
@@ -97,23 +96,23 @@ WantedBy=multi-user.target
 EOF
 
 
-echo '# setup JAVA_HOME' >> ~/.bash_profile
-echo 'export JAVA_HOME=$(dirname $(dirname $(readlink $(readlink $(which java)))))' >> ~/.bash_profile
-echo 'export PATH=$PATH:$JAVA_HOME/bin' >> ~/.bash_profile
-echo 'export CLASSPATH=.:$JAVA_HOME/jre/lib:$JAVA_HOME/lib:$JAVA_HOME/lib/tools.jar' >> ~/.bash_profile
-. ~/.bash_profile
+#echo '# setup JAVA_HOME' >> ~/.bash_profile
+#echo 'export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))' >> ~/.bash_profile
+#echo 'export PATH=$PATH:$JAVA_HOME/bin' >> ~/.bash_profile
+#echo 'export CLASSPATH=.:$JAVA_HOME/jre/lib:$JAVA_HOME/lib:$JAVA_HOME/lib/tools.jar' >> ~/.bash_profile
+#. ~/.bash_profile
 
-#cat <<EOF>/etc/profile.d/jdk.sh
+cat <<EOF>/etc/profile.d/openjdk.sh
 #
 # Java environmemnt
-#
 #
 # Ensure the JAVA_HOME root directory to have sub directories of " bin  include  jre  lib  tapset "
 #
 #
-#export JAVA_HOME=/etc/alternatives/java_sdk_openjdk
-#export JRE_HOME=$JAVA_HOME/jre
-#export PATH=$PATH:$JRE_HOME/bin
+export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
+export JRE_HOME=$(dirname $(dirname $(readlink -f $(which java))))
+export PATH=$PATH:$JRE_HOME/bin
+EOF
 
 systemctl daemon-reload
 systemctl enable tomcat
@@ -151,7 +150,7 @@ cd /tmp
 curl -LO https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-8.0.23.tar.gz
 #curl -LO https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-5.1.45.tar.gz
 #curl -LO https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-8.0.23-1.el7.noarch.rpm
-tar zxvf ./mysql-connector-java-5.1.45.tar.gz
+tar zxvf ./mysql-connector-java-8.0.23.tar.gz
 cp mysql-connector-java-*/mysql-connector-java-*.jar /etc/guacamole/lib/
 
 cd /tmp
@@ -161,9 +160,6 @@ cp guacamole-auth-jdbc-1.3.0/mysql/guacamole-auth-jdbc-mysql-1.3.0.jar /etc/guac
 
 cd guacamole-auth-jdbc-0.9*/mysql/schema
 cat *.sql | mysql -u root -p guacdb
-
-
-
 
 cp /tmp/guacamole-1.3.0.war /opt/tomcat/webapps/guacamole.war
 if [ -f /etc/guacamole/guacamole.properties ]; then cp /etc/guacamole/guacamole.properties /etc/guacamole/guacamole.properties.000; fi
@@ -183,14 +179,40 @@ mysql-default-max-connections-per-user: 0
 mysql-default-max-group-connections-per-user: 0
 EOF
 
-echo "export GUACAMOLE_HOME=/etc/guacamole" >> ~/.bash_profile
 echo "export GUACAMOLE_HOME=/etc/guacamole" >> /etc/profile.d/guacamole.sh
-source ~/.bash_profile
+#echo "export GUACAMOLE_HOME=/etc/guacamole" >> ~/.bash_profile
+#source ~/.bash_profile
 ln -s /etc/guacamole/ /root/.guacamole
 
 systemctl restart mariadb guacd tomcat
 
 echo "login with browser: http://localhost:8080/guacamole"
+curl -X POST -F 'username=guacadmin&password=guacadmin' localhost:8080/guacamole/api/tokens
 curl http://172.16.92.131:8080/guacamole/#/
 
-
+##############################################################
+# MYSQL CRIB SHEET
+##############################################################
+# mysql -u guacdb_user -p
+# show schemas;
+# show tables from guacdb;
+# desc guacamole_user;
+# select * from guacamole_user;
+# SELECT Host, User FROM mysql.user;
+# DROP USER ''@'localhost';
+# DROP USER ''@'the.server.hostname';
+# use mysql;
+# select host, user from mysql.user;
+# select host, user from user;
+# drop user 'guacdb-user'@localhost;
+# show schemas;
+# use mysql;
+# select host, user from user;
+# FLUSH PRIVILEGES;
+# DROP DATABASE guacdb
+##############################################################
+# MISC TS SHEET
+##############################################################
+# cat /etc/profile.d/guacamole.sh
+# export GUACAMOLE_HOME=/etc/guacamole
+##############################################################

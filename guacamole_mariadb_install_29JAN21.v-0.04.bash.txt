@@ -19,12 +19,10 @@ sed -i 's/=enforcing/=permissive/' /etc/selinux/config
 
 yum -y install cairo-devel dejavu-sans-mono-fonts ffmpeg-devel freerdp freerdp-devel freerdp-plugins gcc gnu-free-mono-fonts libjpeg-turbo libjpeg-turbo-devel libjpeg-devel libpng-devel libssh2-devel libssh-devel libtool libvncserver-devel libvorbis-devel libwebp libwebp-devel libwebsockets-devel openssl-devel pango-devel pulseaudio-libs-devel terminus-fonts uuid-devel
 
-# executed on host
-# ssh-keygen -b 2048 -t rsa -f /tmp/host2guestSshkey -q -N ""
+# setup ssh public key from x to y; with kickstart file
 yum –y install openssh-server openssh-clients
 sudo systemctl start sshd
 sudo systemctl enable sshd
-ssh-keygen -q -N ""
 
 yum -y install terminus-fonts lynx mlocate
 yum -y groupinstall "Development Tools"
@@ -124,8 +122,12 @@ systemctl start mariadb
 systemctl enable mariadb
 systemctl status mariadb
 
+echo "setting up mysql password; hit 'ENTER' because we do not have one yet"
+echo "should be yes to all the remaining questions"
+
 mysql_secure_installation
 
+echo "enter the new password for mysql that you typed earlier"
 mysql -u root -p <<EOF
 
 CREATE DATABASE guacdb;
@@ -136,6 +138,7 @@ quit
 
 EOF
 
+echo "enter the new password for mysql that you typed earlier"
 echo "use guacdb; show tables;"|mysql -u guacdb_user -p
 mkdir -p /etc/guacamole/{extensions,lib}
 
@@ -150,6 +153,7 @@ tar zxvf guacamole-auth-jdbc-*.tar.gz
 cp guacamole-auth-jdbc-*/mysql/guacamole-auth-jdbc-mysql-*.jar /etc/guacamole/extensions/
 
 cd guacamole-auth-jdbc-*/mysql/schema
+echo "enter the new password for mysql that you typed earlier"
 cat *.sql | mysql -u root -p guacdb
 
 cp /tmp/guacamole-1.3.0.war /opt/tomcat/webapps/guacamole.war
@@ -177,6 +181,8 @@ ln -s /etc/guacamole/ /root/.guacamole
 # restart services
 systemctl restart mariadb guacd tomcat
 
+# TODO: setup iptables rules
+iptables -F
 echo "login with browser: http://localhost:8080/guacamole"
 curl -X POST -F 'username=guacadmin&password=guacadmin' localhost:8080/guacamole/api/tokens
 curl http://localhost:8080/guacamole/#/
