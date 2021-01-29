@@ -111,7 +111,8 @@ cat <<EOF>/etc/profile.d/openjdk.sh
 #
 export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
 export JRE_HOME=$(dirname $(dirname $(readlink -f $(which java))))
-export PATH=$PATH:$JRE_HOME/bin
+export PATH=$PATH:$JRE_HOME/bin:$JAVA_HOME/bin:
+
 EOF
 
 systemctl daemon-reload
@@ -179,11 +180,11 @@ mysql-default-max-connections-per-user: 0
 mysql-default-max-group-connections-per-user: 0
 EOF
 
+# setup GUACAMOLE_HOME
 echo "export GUACAMOLE_HOME=/etc/guacamole" >> /etc/profile.d/guacamole.sh
-#echo "export GUACAMOLE_HOME=/etc/guacamole" >> ~/.bash_profile
-#source ~/.bash_profile
 ln -s /etc/guacamole/ /root/.guacamole
 
+# restart services
 systemctl restart mariadb guacd tomcat
 
 echo "login with browser: http://localhost:8080/guacamole"
