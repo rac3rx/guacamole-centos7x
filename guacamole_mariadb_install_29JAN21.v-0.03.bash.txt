@@ -146,10 +146,10 @@ cp mysql-connector-java-*/mysql-connector-java-*.jar /etc/guacamole/lib/
 
 cd /tmp
 curl -LO "http://apache.org/dyn/closer.cgi?action=download&filename=guacamole/1.3.0/binary/guacamole-auth-jdbc-1.3.0.tar.gz"
-tar zxvf guacamole-auth-jdbc-1.3.0.tar.gz
-cp guacamole-auth-jdbc-1.3.0/mysql/guacamole-auth-jdbc-mysql-1.3.0.jar /etc/guacamole/extensions/
+tar zxvf guacamole-auth-jdbc-*.tar.gz
+cp guacamole-auth-jdbc-*/mysql/guacamole-auth-jdbc-mysql-*.jar /etc/guacamole/extensions/
 
-cd guacamole-auth-jdbc-0.9*/mysql/schema
+cd guacamole-auth-jdbc-*/mysql/schema
 cat *.sql | mysql -u root -p guacdb
 
 cp /tmp/guacamole-1.3.0.war /opt/tomcat/webapps/guacamole.war
@@ -179,7 +179,7 @@ systemctl restart mariadb guacd tomcat
 
 echo "login with browser: http://localhost:8080/guacamole"
 curl -X POST -F 'username=guacadmin&password=guacadmin' localhost:8080/guacamole/api/tokens
-curl http://172.16.92.131:8080/guacamole/#/
+curl http://localhost:8080/guacamole/#/
 
 ##############################################################
 # MYSQL CRIB SHEET
